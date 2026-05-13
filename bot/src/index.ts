@@ -10,9 +10,7 @@
 // non-streamed targeted reply.
 
 import 'dotenv/config';
-import http from 'node:http';
-import express from 'express';
-import { App, ExpressAdapter } from '@microsoft/teams.apps';
+import { App } from '@microsoft/teams.apps';
 
 import {
   handleGroupSlashCommand,
@@ -24,15 +22,17 @@ import { handleDirectMessage, sendDirectWelcome } from './handlers/direct.js';
 
 const PORT = Number(process.env.PORT ?? 3978);
 
-const expressApp = express();
-const server = http.createServer(expressApp);
-const adapter = new ExpressAdapter(server);
-
-const app = new App({ httpServerAdapter: adapter });
+// The App orchestrator builds its own HTTP server internally — pass the
+// Bot Framework client credentials (BOT_ID + BOT_PASSWORD written by
+// `teams app create --env .env`) and call `app.start(port)` to listen.
+const app = new App({
+  clientId: process.env.BOT_ID ?? '',
+  clientSecret: process.env.BOT_PASSWORD ?? '',
+});
 
 // ───────────── Inbound message handler ─────────────
 
-app.on('message', async (ctx) => {
+app.on('message', async (ctx: any) => {
   const text: string = ctx.activity.text?.trim() ?? '';
   const convoType: string | undefined =
     ctx.activity.conversation?.conversationType;
@@ -40,14 +40,14 @@ app.on('message', async (ctx) => {
 
   // 1:1 direct chat — streaming surface.
   if (isOneOnOne) {
-    await handleDirectMessage(ctx as any);
+    await handleDirectMessage(ctx);
     return;
   }
 
   // Group / channel — promote-to-chat takes priority (the user clicked
   // the chip on a prior targeted reply).
   if (text === POST_TO_CHAT_TOKEN) {
-    await handlePromoteToChat(ctx as any);
+    await handlePromoteToChat(ctx);
     return;
   }
 
@@ -57,7 +57,7 @@ app.on('message', async (ctx) => {
   // that don't yet pass the flag through.
   const isTargeted = Boolean(ctx.activity.recipient?.isTargeted);
   if (isTargeted || isRelecloudSlashCommand(text)) {
-    await handleGroupSlashCommand(ctx as any);
+    await handleGroupSlashCommand(ctx);
     return;
   }
 
@@ -70,7 +70,7 @@ app.on('message', async (ctx) => {
 
 // When the user installs / opens the bot 1:1 for the first time, send
 // the welcome message with prompt-suggestion chips.
-app.on('conversationUpdate', async (ctx) => {
+app.on('conversationUpdate', async (ctx: any) => {
   const added = ctx.activity.membersAdded ?? [];
   const botId: string | undefined = ctx.activity.recipient?.id;
   const convoType = ctx.activity.conversation?.conversationType;
@@ -78,14 +78,12 @@ app.on('conversationUpdate', async (ctx) => {
 
   const userAdded = added.find((m: any) => m.id !== botId);
   if (userAdded) {
-    await sendDirectWelcome(ctx as any);
+    await sendDirectWelcome(ctx);
   }
 });
 
 // ───────────── Boot ─────────────
 
-await app.initialize();
-server.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`relecloud agent listening on http://localhost:${PORT}/api/messages`);
-});
+await app.start(PORT);
+// eslint-disable-next-line no-console
+console.log(`relecloud agent listening on http://localhost:${PORT}/api/messages`);
