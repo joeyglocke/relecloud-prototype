@@ -49,6 +49,13 @@ export const contacts = [
   { id: 31, name: 'Figma', initials: null, color: '#FFFFFF', status: null, isAgent: true, logo: 'figma', avatar: `${base}avatars/figma.png`, logoInset: true, description: 'Design files and component libraries' },
   { id: 32, name: 'Cowork', initials: null, color: '#FFFFFF', status: null, isAgent: true, logo: 'cowork', avatar: `${base}avatars/cowork.png`, logoInset: true, description: 'Async collaboration and document workflows' },
   { id: 33, name: 'AC Test', initials: 'AC', color: '#5B5FC7', status: null, isGroup: true, memberCount: 5 },
+  // Relecloud — travel concierge agent. Brand color matches the cloud-blue
+  // SVG in agentLogos.jsx. Used in the Northwind kickoff offsite demo group
+  // to showcase targeted messages, reactions, markdown, and promote-to-chat.
+  { id: 34, name: 'Relecloud', initials: null, color: '#0F6CBD', status: null, isAgent: true, logo: 'relecloud', description: 'Travel and offsite venue concierge' },
+  // Dedicated demo group for the Relecloud flow. Members are Alex's
+  // Northwind co-conspirators planning a post-launch team gathering.
+  { id: 35, name: 'Northwind kickoff offsite', initials: 'NK', color: '#0078D4', status: null, isGroup: true, memberCount: 7 },
 ]
 
 // Teams the user belongs to. Each team has a list of channels (by contact id,
@@ -103,6 +110,8 @@ export const projectNorthwind = [
 
 export const chatList = [
   // Jira demo flow disabled — restore `draft: '/Jira Are there any blockers assigned to me?'` to re-enable.
+  // Relecloud demo: draft preloaded so the offsite group opens ready to send.
+  { contactId: 35, bold: true, draft: '/Relecloud find a 2-day offsite venue near Seattle for 7 people in May' },
   { contactId: 3 },
   { contactId: 4 },
   { contactId: 6 },

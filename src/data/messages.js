@@ -1046,4 +1046,17 @@ export const messagesByContact = {
     { id: 15, senderId: 17, text: 'Nice. Also filed JIRA-4596 — requesting the keyboard shortcut tooltip. Minor, post-launch.', time: 'Today 1:40 PM' },
     { id: 16, senderId: 'me', text: 'Appreciate the triage hustle this week. The dogfood channel has been the MVP of launch prep.', time: 'Today 3:30 PM', reactions: [{ emoji: '🙌', count: 5 }, { emoji: '🚀', count: 2 }] },
   ],
+
+  // ── Northwind kickoff offsite (group) ────────────────────────────────
+  // Small post-launch celebration planning thread. Alex will invoke
+  // /Relecloud here to surface venue options privately, then promote the
+  // recommendation to the group.
+  35: [
+    { id: 1, senderId: 12, text: 'Once we ship Monday I want to get the core team in a room for a couple days. Decompress, retro, plan v2.1.', time: 'Mon 4:12 PM', reactions: [{ emoji: '🙌', count: 4 }] },
+    { id: 2, senderId: 1, text: 'I\'m in. Last offsite was good but the hotel meeting room was rough. Whiteboard space matters this time.', time: 'Mon 4:15 PM' },
+    { id: 3, senderId: 7, text: 'Drivable from Seattle would be ideal — Olivia and David are skipping the flight this round.', time: 'Mon 4:20 PM' },
+    { id: 4, senderId: 9, text: '+1 drivable. Two-day max though, kids have a recital that weekend.', time: 'Mon 4:22 PM' },
+    { id: 5, senderId: 12, text: 'Alex — you usually have a take on venues. Mid-May, 2 days, 7 of us. Somewhere with real meeting space, not a hotel boardroom.', time: 'Tue 9:08 AM' },
+    { id: 6, senderId: 'me', text: 'On it. Let me pull a short list and bring it back here.', time: 'Tue 9:12 AM', reactions: [{ emoji: '👍', count: 2 }] },
+  ],
 }

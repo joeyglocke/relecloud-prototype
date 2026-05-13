@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { agentLogos } from '../shared/agentLogos'
 import { contacts, currentUser } from '../data/contacts'
-import { Avatar, LinkCard, PrivateDisclaimer, Check, ChainOfThought } from './common'
+import { Avatar, LinkCard, PrivateDisclaimer, Check, ChainOfThought, Markdown } from './common'
 import MessageActions from './MessageActions'
 
 // Office-app icon tiles for adaptive cards that represent generated artifacts.
@@ -169,7 +169,22 @@ function ThreadReplyBadge({ reply, onClick }) {
   )
 }
 
-export default function MessageRow({ message, activeContact, onOpenThread }) {
+// Inline avatar for the small "Shared from <Agent>" attribution strip atop a
+// promoted message — small color tile + (logo | initials) — kept local since
+// it's narrower than the full Avatar component and isn't reused elsewhere yet.
+function AgentChip({ agentId }) {
+  const agent = contacts.find((c) => c.id === agentId)
+  if (!agent) return null
+  return (
+    <span className="shared-from-chip" style={{ background: agent.color }}>
+      {agent.logo && agentLogos[agent.logo]
+        ? agentLogos[agent.logo](10)
+        : <span className="shared-from-chip-initials">{agent.initials}</span>}
+    </span>
+  )
+}
+
+export default function MessageRow({ message, activeContact, onOpenThread, onPromote }) {
   const isMe = message.senderId === 'me'
   const isMultiParty = activeContact.isGroup || activeContact.isChannel
   const sender = isMe
@@ -206,7 +221,28 @@ export default function MessageRow({ message, activeContact, onOpenThread }) {
         </div>
         <div className={`message-bubble ${message.isPrivate ? 'message-bubble-private' : ''}`}>
           <MessageActions onReact={toggleReaction} />
-          {message.isPrivate && <PrivateDisclaimer />}
+          {message.isPrivate && (
+            <PrivateDisclaimer
+              text={
+                message.privateWithAgentId
+                  ? `Only you and ${
+                      contacts.find((c) => c.id === message.privateWithAgentId)?.name || 'this agent'
+                    } can see this conversation`
+                  : undefined
+              }
+            />
+          )}
+          {message.sharedFromAgentId && (
+            <div className="shared-from-strip">
+              <AgentChip agentId={message.sharedFromAgentId} />
+              <span className="shared-from-label">
+                Shared from{' '}
+                <span className="shared-from-name">
+                  {contacts.find((c) => c.id === message.sharedFromAgentId)?.name}
+                </span>
+              </span>
+            </div>
+          )}
           {message.forwardedFrom && (
             <div className="forwarded-message">
               <div className="forwarded-sender">{message.forwardedFrom.sender}</div>
@@ -214,7 +250,9 @@ export default function MessageRow({ message, activeContact, onOpenThread }) {
             </div>
           )}
           {message.subject && <div className="message-subject">{message.subject}</div>}
-          {Array.isArray(message.text)
+          {message.markdown ? (
+            <Markdown source={message.markdown} />
+          ) : Array.isArray(message.text)
             ? message.text.map((part, i) =>
                 typeof part === 'string' ? part : <span key={i} className="mention">{part.name}</span>
               )
@@ -285,6 +323,32 @@ export default function MessageRow({ message, activeContact, onOpenThread }) {
           )}
           {message.chainOfThought && (
             <ChainOfThought steps={message.chainOfThought} />
+          )}
+          {message.canPromote && !message.promoted && (
+            <div className="promote-action-row">
+              <button
+                type="button"
+                className="promote-btn"
+                onClick={() => onPromote?.(message)}
+                aria-label="Post this reply to the group chat"
+              >
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 17l14-7L3 3v5l10 2L3 12z" />
+                </svg>
+                Post to chat
+              </button>
+              <span className="promote-hint">Share this reply with the rest of the group</span>
+            </div>
+          )}
+          {message.promoted && (
+            <div className="promote-action-row promote-action-row-done">
+              <span className="promote-done">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 10l4 4 8-9" />
+                </svg>
+                Posted to chat
+              </span>
+            </div>
           )}
         </div>
         {reactions.length > 0 && (

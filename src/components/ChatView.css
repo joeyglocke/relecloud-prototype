@@ -170,6 +170,99 @@
   border: 1px solid #BDBDBD;
 }
 
+/* ── "Shared from <Agent>" attribution strip ──
+   Sits at the top of a promoted message bubble — small agent chip + label
+   telling the rest of the group that the content came from a private
+   exchange with an agent. */
+.shared-from-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 2px 8px 2px 2px;
+  background: rgba(15, 108, 189, 0.08);
+  border-radius: 999px;
+  font-size: 11px;
+  color: #424242;
+  line-height: 16px;
+}
+
+.shared-from-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.shared-from-chip-initials {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.shared-from-label {
+  color: #616161;
+}
+
+.shared-from-name {
+  color: #242424;
+  font-weight: 600;
+}
+
+/* ── Promote-to-chat action (private agent reply) ──
+   A subtle inline row at the bottom of a private agent reply, offering to
+   share the content with the rest of the group chat. After click, the
+   button is replaced with a small "Posted to chat" confirmation. */
+.promote-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #D0D0D0;
+}
+
+.promote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: #fff;
+  border: 1px solid #0F6CBD;
+  color: #0F6CBD;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 80ms ease-out;
+}
+
+.promote-btn:hover {
+  background: rgba(15, 108, 189, 0.08);
+}
+
+.promote-hint {
+  font-size: 11px;
+  color: #616161;
+}
+
+.promote-action-row-done {
+  border-top-color: #C8E6C9;
+}
+
+.promote-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2C7A2C;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 /* PrivateDisclaimer base styles live in components/common/PrivateDisclaimer.css;
    inside message bubbles we add a little breathing room below. */
 .message-bubble .private-disclaimer {

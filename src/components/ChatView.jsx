@@ -42,8 +42,52 @@ function postToMessage(post) {
 }
 
 function parseDraft(d) {
-  const m = d.match(/^\/Jira\b\s*/i)
-  return m ? { mention: 'Jira', text: d.slice(m[0].length) } : { mention: null, text: d }
+  // Recognized slash-command mentions for the prototype: Jira (disabled
+  // demo) and Relecloud (active demo). Match the canonical mention name so
+  // the pill renders as "/Relecloud" / "/Jira" regardless of input casing.
+  const slashMentions = { jira: 'Jira', relecloud: 'Relecloud' }
+  const m = d.match(/^\/([A-Za-z]+)\b\s*/)
+  if (m && slashMentions[m[1].toLowerCase()]) {
+    return { mention: slashMentions[m[1].toLowerCase()], text: d.slice(m[0].length) }
+  }
+  return { mention: null, text: d }
+}
+
+// ── Relecloud demo flow ────────────────────────────────────────────────
+// The Relecloud agent (contact id 34) lives in the "Northwind kickoff
+// offsite" group (id 35). When the user sends a `/Relecloud …` message
+// there, the message is rendered as a targeted (private) message, the bot
+// reacts, and a markdown reply lands as another targeted message with a
+// "Post to chat" action that promotes the content to the whole group.
+const RELECLOUD_AGENT_ID = 34
+const RELECLOUD_DEMO_CHAT_ID = 35
+
+const relecloudReply = {
+  reactionEmoji: '👀',
+  markdown:
+    '## Three offsite venues near Seattle\n' +
+    '\n' +
+    'Pulled options that fit 7 people, 2 nights in mid-May, with real meeting space (not a hotel boardroom).\n' +
+    '\n' +
+    '### Salish Lodge & Spa — *Snoqualmie Falls*\n' +
+    '- ~30 min drive from Seattle, easiest logistics\n' +
+    '- **$2,940/night** group block · 7 rooms held\n' +
+    '- Dedicated team room with whiteboards, fireplace lounge for evenings\n' +
+    '- [Check availability May 12–13](#)\n' +
+    '\n' +
+    '### Suncadia Resort — *Cle Elum*\n' +
+    '- 1h 20m drive, more "leave town" feel\n' +
+    '- **$2,440/night** group block · 2-bedroom suites\n' +
+    '- Full conference center + hiking trails, fire pits, optional river float\n' +
+    '- [Check availability May 14–15](#)\n' +
+    '\n' +
+    '### Roche Harbor Resort — *San Juan Island*\n' +
+    '- 3h via ferry, longer travel day but a real milestone trip\n' +
+    '- **$3,180/night** waterfront cottages\n' +
+    '- Sea kayaking, sunset dinner cruise, quietest of the three\n' +
+    '- [Check availability May 19–20](#)\n' +
+    '\n' +
+    'My pick: **Suncadia.** Best balance of drive time, cost, and dedicated meeting space — and the off-site feel is stronger than Salish. Want me to draft a 2-day itinerary?',
 }
 
 // ── Scripted Jira demo flow (disabled) ─────────────────────────────────────
@@ -116,6 +160,11 @@ export default function ChatView({
   const [activeSessionId, setActiveSessionId] = useState(null)
   const [jiraThreadAnchorId, setJiraThreadAnchorId] = useState(null)
   const [mainTypingAgentId, setMainTypingAgentId] = useState(null)
+  // Tracks which chat the current typing indicator belongs to so an agent
+  // typing in a group chat (Relecloud in chat 35) doesn't get filtered out
+  // by the legacy "mainTypingAgentId === activeChatId" check that assumed
+  // typing only happens in 1:1 agent chats.
+  const [mainTypingChatId, setMainTypingChatId] = useState(null)
   const [channelThreadPostId, setChannelThreadPostId] = useState(null)
   const [threadRailOpen, setThreadRailOpen] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState(null)
@@ -446,6 +495,110 @@ export default function ChatView({
     scheduleJiraResponse(0, userMsgId)
   }
 
+  // ── Relecloud demo flow handlers ──────────────────────────────────────
+  // Adds a reaction emoji to a message already in extraMessages for the
+  // current chat. Used to seed the bot's reaction on the user's slash-
+  // command message — visualizes "the agent saw your targeted ask".
+  const addReactionToMessage = (chatId, msgId, emoji) => {
+    setExtraMessages((prev) => {
+      const list = prev[chatId] || []
+      return {
+        ...prev,
+        [chatId]: list.map((m) => {
+          if (m.id !== msgId) return m
+          const existing = m.reactions || []
+          const found = existing.find((r) => r.emoji === emoji)
+          const reactions = found
+            ? existing.map((r) => (r.emoji === emoji ? { ...r, count: r.count + 1 } : r))
+            : [...existing, { emoji, count: 1 }]
+          return { ...m, reactions }
+        }),
+      }
+    })
+  }
+
+  const startRelecloudDemoFlow = (sentText) => {
+    const chatId = activeChatId
+    const userMsgId = `rc-u-${Date.now()}`
+    const userTime = nowTimeStr()
+    // Render the user's slash command as a styled mention pill + remaining text,
+    // matching the existing "/Jira ..." pattern.
+    const trimmed = sentText.trim()
+    const stripped = trimmed.replace(/^\/Relecloud\s*/i, '')
+    const messageText = [{ type: 'mention', name: 'Relecloud' }, stripped ? ' ' + stripped : '']
+
+    // Targeted message: only the user + Relecloud can see this exchange.
+    // `privateWithAgentId` swaps the disclaimer text to name the agent.
+    setExtraMessages((prev) => ({
+      ...prev,
+      [chatId]: [
+        ...(prev[chatId] || []),
+        {
+          id: userMsgId,
+          senderId: 'me',
+          text: messageText,
+          time: userTime,
+          isPrivate: true,
+          privateWithAgentId: RELECLOUD_AGENT_ID,
+        },
+      ],
+    }))
+
+    // Step 1 — bot reacts to the targeted ask after a short beat.
+    setTimeout(() => addReactionToMessage(chatId, userMsgId, relecloudReply.reactionEmoji), 700)
+
+    // Step 2 — bot starts typing.
+    setTimeout(() => {
+      setMainTypingAgentId(RELECLOUD_AGENT_ID)
+      setMainTypingChatId(chatId)
+    }, 1400)
+
+    // Step 3 — bot replies in a targeted markdown message with a "Post to chat" action.
+    setTimeout(() => {
+      setMainTypingAgentId((prev) => (prev === RELECLOUD_AGENT_ID ? null : prev))
+      setMainTypingChatId((prev) => (prev === chatId ? null : prev))
+      setExtraMessages((prev) => ({
+        ...prev,
+        [chatId]: [
+          ...(prev[chatId] || []),
+          {
+            id: `rc-r-${Date.now()}`,
+            senderId: RELECLOUD_AGENT_ID,
+            markdown: relecloudReply.markdown,
+            time: nowTimeStr(),
+            isPrivate: true,
+            privateWithAgentId: RELECLOUD_AGENT_ID,
+            canPromote: true,
+          },
+        ],
+      }))
+    }, 3600)
+  }
+
+  const promoteMessage = (message) => {
+    if (!message?.markdown) return
+    const chatId = activeChatId
+    setExtraMessages((prev) => ({
+      ...prev,
+      [chatId]: [
+        // Mark the original private reply as promoted so the action row
+        // swaps to the "Posted to chat" confirmation.
+        ...(prev[chatId] || []).map((m) =>
+          m.id === message.id ? { ...m, promoted: true } : m
+        ),
+        // Append the same content as a regular (non-private) message from
+        // the current user, attributed to the source agent.
+        {
+          id: `promoted-${Date.now()}`,
+          senderId: 'me',
+          markdown: message.markdown,
+          time: nowTimeStr(),
+          sharedFromAgentId: RELECLOUD_AGENT_ID,
+        },
+      ],
+    }))
+  }
+
   const handleSend = () => {
     if (!composeMention && !inputValue.trim()) return
 
@@ -460,6 +613,13 @@ export default function ChatView({
     const isJiraInvocation = JIRA_FLOW_ENABLED && chatId === 11 && sentText.toLowerCase().includes('jira')
     if (isJiraInvocation) {
       startJiraDemoFlow(sentText)
+      return
+    }
+
+    const isRelecloudInvocation =
+      chatId === RELECLOUD_DEMO_CHAT_ID && /^\/relecloud\b/i.test(sentText.trim())
+    if (isRelecloudInvocation) {
+      startRelecloudDemoFlow(sentText)
       return
     }
 
@@ -479,8 +639,10 @@ export default function ChatView({
     // indicator flow end-to-end from a regular 1:1 chat.
     if (chatId === 1) {
       setMainTypingAgentId(chatId)
+      setMainTypingChatId(chatId)
       setTimeout(() => {
         setMainTypingAgentId((prev) => (prev === chatId ? null : prev))
+        setMainTypingChatId((prev) => (prev === chatId ? null : prev))
         setExtraMessages((prev) => ({
           ...prev,
           [bucket]: [...(prev[bucket] || []), {
@@ -511,9 +673,11 @@ export default function ChatView({
 
     // Typing indicator then the prepared response.
     setMainTypingAgentId(chatId)
+    setMainTypingChatId(chatId)
     const delay = 2000 + Math.floor(Math.random() * 1000)
     setTimeout(() => {
       setMainTypingAgentId((prev) => (prev === chatId ? null : prev))
+      setMainTypingChatId((prev) => (prev === chatId ? null : prev))
       const agentMessage = {
         id: `extra-${Date.now()}-r`,
         senderId: chatId,
@@ -528,7 +692,8 @@ export default function ChatView({
   }
 
   const agentSuggestions = isAgent ? promptSuggestions[activeChatId] : null
-  const showPromptSuggestions = !!agentSuggestions && messages.length === 0 && mainTypingAgentId !== activeChatId
+  const showPromptSuggestions =
+    !!agentSuggestions && messages.length === 0 && mainTypingChatId !== activeChatId
 
   return (
     <div className="chat-view">
@@ -600,6 +765,7 @@ export default function ChatView({
                     key={msg.id}
                     message={isThreaded ? postToMessage(msg) : msg}
                     activeContact={activeContact}
+                    onPromote={promoteMessage}
                     onOpenThread={isThreaded ? () => {
                       if (threadRailOpen && channelThreadPostId === msg.id) {
                         setThreadRailOpen(false)
@@ -618,9 +784,13 @@ export default function ChatView({
         </div>
 
         <div className="chat-compose-area">
-          {mainTypingAgentId === activeChatId && (
+          {mainTypingChatId === activeChatId && mainTypingAgentId && (
             <TypingIndicator
-              contact={activeContact}
+              contact={
+                mainTypingAgentId === activeContact.id
+                  ? activeContact
+                  : contacts.find((c) => c.id === mainTypingAgentId) || activeContact
+              }
               className="chat-compose-typing"
             />
           )}

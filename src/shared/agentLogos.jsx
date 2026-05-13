@@ -11,4 +11,10 @@ export const agentLogos = {
       <path d="M10.5363 3.5409L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456z"/>
     </svg>
   ),
+  relecloud: (size = 12) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 18a4 4 0 0 1-.86-7.91 5 5 0 0 1 9.72 0A4 4 0 0 1 17 18z" fill="#fff" stroke="#fff" strokeWidth="0" />
+      <path d="M9.5 13l1.5 1.5L14.5 11" stroke="#0F6CBD" strokeWidth="2" />
+    </svg>
+  ),
 }
