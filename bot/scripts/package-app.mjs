@@ -42,17 +42,19 @@ function loadEnv() {
 }
 
 const ENV = loadEnv();
-// Teams CLI sets BOT_ID and (depending on version) writes TEAMS_APP_ID too.
-// When TEAMS_APP_ID isn't separately set, the Teams-managed bot uses the same
-// GUID for both — matching `teams app create`'s output.
-const BOT_ID = ENV.BOT_ID ?? '';
-const TEAMS_APP_ID = ENV.TEAMS_APP_ID ?? BOT_ID;
+// Teams CLI v3 writes CLIENT_ID / CLIENT_SECRET / TENANT_ID to .env.
+// Earlier docs (and manual setups) sometimes use BOT_ID / BOT_PASSWORD —
+// accept either so this script works regardless of how .env was produced.
+// The Teams-managed bot uses the same GUID for the app id and the bot id;
+// pass TEAMS_APP_ID separately only if you registered them independently.
+const BOT_ID = ENV.CLIENT_ID || ENV.BOT_ID || '';
+const TEAMS_APP_ID = ENV.TEAMS_APP_ID || BOT_ID;
 
 if (!BOT_ID) {
   console.error(
-    '!! BOT_ID is not set in .env or the environment.\n' +
-      '   Run `teams app create --name "Relecloud" --env .env` first,\n' +
-      '   or paste an existing AAD app ID into bot/.env.',
+    '!! Bot client ID is not set.\n' +
+      '   Expected CLIENT_ID (from `teams app create --env .env`)\n' +
+      '   or BOT_ID (manual setup) in bot/.env or the environment.',
   );
   process.exit(1);
 }

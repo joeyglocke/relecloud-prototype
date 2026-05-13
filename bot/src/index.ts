@@ -22,12 +22,20 @@ import { handleDirectMessage, sendDirectWelcome } from './handlers/direct.js';
 
 const PORT = Number(process.env.PORT ?? 3978);
 
-// The App orchestrator builds its own HTTP server internally — pass the
-// Bot Framework client credentials (BOT_ID + BOT_PASSWORD written by
-// `teams app create --env .env`) and call `app.start(port)` to listen.
+// The App orchestrator builds its own HTTP server internally. Credentials
+// come from .env:
+//   • Teams CLI (preview) writes CLIENT_ID / CLIENT_SECRET / TENANT_ID
+//   • Manual setups sometimes use BOT_ID / BOT_PASSWORD
+// Accept either pair so the bot starts cleanly regardless.
+const clientId = process.env.CLIENT_ID ?? process.env.BOT_ID ?? '';
+const clientSecret =
+  process.env.CLIENT_SECRET ?? process.env.BOT_PASSWORD ?? '';
+const tenantId = process.env.TENANT_ID;
+
 const app = new App({
-  clientId: process.env.BOT_ID ?? '',
-  clientSecret: process.env.BOT_PASSWORD ?? '',
+  clientId,
+  clientSecret,
+  ...(tenantId ? { tenantId } : {}),
 });
 
 // ───────────── Inbound message handler ─────────────
