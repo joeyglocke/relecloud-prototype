@@ -2,6 +2,11 @@
 // state inside the chat canvas. `text` is what gets sent when the card is
 // clicked; `response` is the canned agent reply that follows after a brief
 // typing indicator.
+//
+// For Relecloud (id 34) the prompt cards skip the canned `response` field
+// and instead carry a `streaming` block — the ChatView 1:1 streaming flow
+// consumes markdown/citations/suggestedActions to deliver an AI-labeled
+// response one character at a time.
 export const promptSuggestions = {
   2: [
     {
@@ -133,6 +138,157 @@ export const promptSuggestions = {
       text: 'Compare the v2.3 → v2.4 component library and list breaking renames.',
       response:
         'v2.3 → v2.4 component library diff:\n\nBreaking renames (3):\n• Button / Primary → Button / Filled (style API parity)\n• Card / Suggestion → Card / Prompt Suggestion (clarifies usage)\n• Toast / Error → Toast / Critical (severity scale rename)\n\nNon-breaking: 12 published edits, 0 removed components.',
+    },
+  ],
+  34: [
+    {
+      title: 'Weather at Snoqualmie Pass',
+      description: 'Will mid-May be clear enough for the offsite?',
+      text: 'What\'s the weather typically like at Snoqualmie Pass in mid-May?',
+      streaming: {
+        markdown:
+          'Mid-May at Snoqualmie Pass is usually clearing — most low-elevation snow is gone, but the pass itself can still see overnight slush through the second week [1].\n' +
+          '\n' +
+          '**What to expect for May 14–15:**\n' +
+          '- Daytime highs **58–66°F** at the pass, low 70s at Suncadia [2]\n' +
+          '- Average **3 days of light rain** that week — pack a shell, not a parka\n' +
+          '- Roads are clear; chains not required after May 1 [3]\n' +
+          '\n' +
+          'Suncadia\'s outdoor fire pits and river float are usually open by then. If anyone\'s flying in, SEA-to-Suncadia is reliably 1h 20m that time of year — no weather margin needed.',
+        citations: [
+          {
+            title: 'NOAA spring outlook — Cascades west slope',
+            abstract: 'Seasonal temperature and precipitation forecast for the Snoqualmie Pass region, May–June 2026.',
+            source: 'climate.noaa.gov · Spring outlook',
+          },
+          {
+            title: 'Visit Suncadia — typical May conditions',
+            abstract: 'Historical daytime highs, rainfall averages, and trail-open dates for the Cle Elum area.',
+            source: 'destinationhotels.com/suncadia · Plan your visit',
+          },
+          {
+            title: 'WSDOT — I-90 Snoqualmie Pass advisories',
+            abstract: 'Year-round pass conditions, chain requirements, and seasonal road work updates.',
+            source: 'wsdot.wa.gov · Mountain passes',
+          },
+        ],
+        suggestedActions: [
+          'Show me trail status for May',
+          'What if it rains the whole time?',
+          'Best venue for unpredictable weather',
+        ],
+      },
+    },
+    {
+      title: 'Dietary options at Suncadia',
+      description: 'Can the venue handle the team\'s restrictions?',
+      text: 'Can Suncadia accommodate vegan, gluten-free, and nut allergies for a group of 7?',
+      streaming: {
+        markdown:
+          'Yes — Suncadia handles all three routinely. Their group-dining menu is built around restriction flags submitted **14 days before arrival** [1].\n' +
+          '\n' +
+          '**What they confirmed for a group of 7:**\n' +
+          '- Vegan: dedicated entrée per meal, separate prep surface [2]\n' +
+          '- Gluten-free: full menu parallel (including breakfast pastries)\n' +
+          '- Tree-nut allergy: kitchen is **nut-aware**, not nut-free — they\'ll flag any cross-contamination risk per dish [1]\n' +
+          '\n' +
+          'Recommend submitting the team\'s restrictions when you place the room block. They\'ll send a confirmation menu with restriction-flagged dishes ~7 days out.',
+        citations: [
+          {
+            title: 'Suncadia group dining — dietary accommodations',
+            abstract: 'Lead times, kitchen protocols, and a sample group menu with allergen flags.',
+            source: 'destinationhotels.com/suncadia · Groups & meetings',
+          },
+          {
+            title: 'Suncadia spring 2026 group menu',
+            abstract: 'Three-meal-a-day menu rotation for groups, with vegan, GF, and dairy-free variants per course.',
+            source: 'Suncadia event sales packet (PDF)',
+          },
+        ],
+        suggestedActions: [
+          'Reserve a tasting menu',
+          'Compare Salish Lodge\'s dietary options',
+          'Confirm allergen training certifications',
+        ],
+      },
+    },
+    {
+      title: 'Driving from Seattle to Suncadia',
+      description: 'Best route, stops, and timing.',
+      text: 'What\'s the best driving route from Seattle to Suncadia for a Wednesday morning departure?',
+      streaming: {
+        markdown:
+          'For a Wednesday morning the cleanest route is **I-90 East via Mercer Island and Issaquah** — about **1h 20m** door-to-door if you leave Seattle by 8:30 AM [1].\n' +
+          '\n' +
+          '**Timing notes:**\n' +
+          '- Leave **before 7:30 AM** or **after 9:30 AM** to skip the Eastside commute squeeze\n' +
+          '- One worthwhile pit stop: [Cle Elum Bakery](#) at exit 84 — 5 minutes off-route, popular with offsite groups [2]\n' +
+          '- Parking at Suncadia is free, valet is $25/day — most groups skip valet\n' +
+          '\n' +
+          'Rough fuel cost (two SUVs): **$60–70 round-trip.** No tolls on this route.',
+        citations: [
+          {
+            title: 'WSDOT — I-90 typical travel times',
+            abstract: 'Average drive times Seattle → Cle Elum by departure hour, updated quarterly.',
+            source: 'wsdot.wa.gov · Travel times',
+          },
+          {
+            title: 'Cle Elum Bakery — visitor reviews',
+            abstract: 'Local bakery 5 minutes off I-90 at exit 84, popular with corporate groups en route to Suncadia.',
+            source: 'tripadvisor.com · Cle Elum',
+          },
+        ],
+        suggestedActions: [
+          'Send a driving brief to the team',
+          'Compare flights for out-of-town attendees',
+          'Reserve two SUVs for Wed–Fri',
+        ],
+      },
+    },
+    {
+      title: 'Activities for 2-day offsite',
+      description: 'Mix of working sessions and team bonding.',
+      text: 'Suggest a balanced 2-day activity plan for a 7-person product offsite at Suncadia.',
+      streaming: {
+        markdown:
+          'A balanced 2-day mix — **two working blocks** plus one shared experience per evening so the team bonds without it feeling forced.\n' +
+          '\n' +
+          '### Day 1 — Wednesday\n' +
+          '- **9:00–12:00** — v2 retro + v2.1 roadmap in the Cascade conference room [1]\n' +
+          '- **12:30** — Lunch on the deck (weather permitting)\n' +
+          '- **2:00–5:00** — Working block: north-star metrics, then deep-dive on agent handoff scope\n' +
+          '- **6:30** — Group dinner at **Portals** (on-property) — vegan + GF accommodated [2]\n' +
+          '\n' +
+          '### Day 2 — Thursday\n' +
+          '- **9:00–11:30** — Prioritization session for the next quarter\n' +
+          '- **11:30–1:00** — Optional: **river float** with the Cascade Outfitters group — 90 min, low-effort, includes lunch [3]\n' +
+          '- **2:00–4:00** — Wrap: commitments, owners, kickoff for v2.1 sprint 1\n' +
+          '- **4:00** — Pack up, depart for Seattle (back by 6:00 PM)\n' +
+          '\n' +
+          'Want me to draft the agenda doc or send a hold to Suncadia\'s events team?',
+        citations: [
+          {
+            title: 'Suncadia Cascade conference room — capacity & layout',
+            abstract: 'Seats 12, whiteboard wall, daylight on three sides, AV included.',
+            source: 'destinationhotels.com/suncadia · Meeting spaces',
+          },
+          {
+            title: 'Portals at Suncadia — group dinner menu',
+            abstract: 'Three-course group menu with full vegan and gluten-free coverage. Bookable up to a party of 14.',
+            source: 'destinationhotels.com/suncadia · Dining',
+          },
+          {
+            title: 'Cascade Outfitters — group river float',
+            abstract: '90-minute guided float on the Yakima River with included box lunch; departs from Suncadia.',
+            source: 'cascadeoutfitters.com · Group trips',
+          },
+        ],
+        suggestedActions: [
+          'Draft the agenda doc',
+          'Send a hold to Suncadia events',
+          'Build a shared travel doc',
+        ],
+      },
     },
   ],
   32: [

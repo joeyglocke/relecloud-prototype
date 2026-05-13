@@ -212,6 +212,192 @@
   font-weight: 600;
 }
 
+/* ── AI metadata row — label + feedback ──
+   A thin subtle bar inside the agent bubble below the message body. The
+   label sits left, feedback (thumbs) sit right, with a dot separator. */
+.ai-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #616161;
+  line-height: 16px;
+}
+
+.ai-meta-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #5B5FC7;
+  font-weight: 600;
+  position: relative;
+  cursor: default;
+}
+
+.ai-meta-label svg {
+  color: #5B5FC7;
+}
+
+/* Tooltip below the AI-generated label — Microsoft's prescribed copy. */
+.ai-meta-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 10px;
+  background: #242424;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.ai-meta-label:hover .ai-meta-tooltip,
+.ai-meta-label:focus-within .ai-meta-tooltip {
+  display: block;
+}
+
+.ai-meta-divider {
+  color: #BDBDBD;
+}
+
+.ai-feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.ai-feedback-label {
+  margin-right: 2px;
+  color: #616161;
+}
+
+.ai-feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #616161;
+  cursor: pointer;
+  transition: background 80ms ease-out, color 80ms ease-out, border-color 80ms ease-out;
+}
+
+.ai-feedback-btn:hover {
+  background: #F0F0F0;
+  color: #242424;
+}
+
+.ai-feedback-btn-active {
+  background: rgba(91, 95, 199, 0.10);
+  color: #5B5FC7;
+  border-color: rgba(91, 95, 199, 0.30);
+}
+
+.ai-feedback-btn-active:hover {
+  background: rgba(91, 95, 199, 0.18);
+  color: #5B5FC7;
+}
+
+/* ── References list — numbered citation cards inside the bubble ── */
+.ai-references {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(91, 95, 199, 0.04);
+  border: 1px solid rgba(91, 95, 199, 0.18);
+  border-radius: 6px;
+}
+
+.ai-references-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #5B5FC7;
+  margin-bottom: 4px;
+}
+
+.ai-references-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-reference-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ai-reference-num {
+  flex: 0 0 auto;
+  color: #5B5FC7;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.ai-reference-body {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ai-reference-title {
+  color: #242424;
+}
+
+.ai-reference-source {
+  font-size: 11px;
+  color: #616161;
+}
+
+/* ── Suggested actions — chip row below the body ── */
+.ai-suggested-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ai-suggested-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  background: #fff;
+  border: 1px solid #C7C7C7;
+  border-radius: 999px;
+  color: #242424;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 80ms ease-out, border-color 80ms ease-out;
+}
+
+.ai-suggested-action:hover {
+  background: rgba(91, 95, 199, 0.06);
+  border-color: #5B5FC7;
+  color: #5B5FC7;
+}
+
 /* ── Promote-to-chat action (private agent reply) ──
    A subtle inline row at the bottom of a private agent reply, offering to
    share the content with the rest of the group chat. After click, the

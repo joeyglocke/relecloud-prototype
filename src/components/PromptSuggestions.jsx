@@ -13,7 +13,7 @@ export default function PromptSuggestions({ agent, suggestions, onSelectPrompt }
         </div>
         <h1 className="prompt-suggestions-name">{agent.name}</h1>
         <p className="prompt-suggestions-subtitle">{agent.description}</p>
-        <div className="prompt-suggestions-grid">
+        <div className="prompt-suggestions-grid" data-count={suggestions.length}>
           {suggestions.map((s, i) => (
             <button
               key={i}

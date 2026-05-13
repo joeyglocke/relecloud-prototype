@@ -110,8 +110,11 @@ export const projectNorthwind = [
 
 export const chatList = [
   // Jira demo flow disabled — restore `draft: '/Jira Are there any blockers assigned to me?'` to re-enable.
-  // Relecloud demo: draft preloaded so the offsite group opens ready to send.
+  // Relecloud demos:
+  //  • Group chat 35 — slash command, targeted msg, reaction, markdown, promote-to-chat
+  //  • Relecloud 1:1 (id 34) — streaming UX, AI label, citations, feedback
   { contactId: 35, bold: true, draft: '/Relecloud find a 2-day offsite venue near Seattle for 7 people in May' },
+  { contactId: 34, bold: true },
   { contactId: 3 },
   { contactId: 4 },
   { contactId: 6 },

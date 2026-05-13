@@ -120,6 +120,104 @@ function CardBars({ bars }) {
   )
 }
 
+// Sparkle icon used to denote AI-generated content. Inline SVG kept local
+// since it's only used in this surface and matches the Fluent "sparkle"
+// glyph Teams uses for Copilot/AI bylines.
+function AiSparkle({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M9.06 1.31a.5.5 0 0 0-.95 0l-.86 2.58a2 2 0 0 1-1.36 1.36l-2.58.86a.5.5 0 0 0 0 .95l2.58.86a2 2 0 0 1 1.36 1.36l.86 2.58a.5.5 0 0 0 .95 0l.86-2.58a2 2 0 0 1 1.36-1.36l2.58-.86a.5.5 0 0 0 0-.95l-2.58-.86a2 2 0 0 1-1.36-1.36l-.86-2.58zM13.5 11.5a.5.5 0 0 0-.95 0l-.18.54a1 1 0 0 1-.63.63l-.54.18a.5.5 0 0 0 0 .95l.54.18a1 1 0 0 1 .63.63l.18.54a.5.5 0 0 0 .95 0l.18-.54a1 1 0 0 1 .63-.63l.54-.18a.5.5 0 0 0 0-.95l-.54-.18a1 1 0 0 1-.63-.63l-.18-.54z" />
+    </svg>
+  )
+}
+
+// Thumbs up / down for the feedback row. Uses outline by default and flips
+// to filled + accent color when active.
+function ThumbIcon({ direction, filled, size = 14 }) {
+  const stroke = filled ? 'none' : 'currentColor'
+  const fill = filled ? 'currentColor' : 'none'
+  const path = direction === 'up'
+    ? 'M5 9.5v7H3.5A.5.5 0 0 1 3 16V10a.5.5 0 0 1 .5-.5H5zm1.5-1V16a1.5 1.5 0 0 0 1.5 1.5h5.31a2 2 0 0 0 1.97-1.66l.94-5.5A1.5 1.5 0 0 0 14.74 8.5H11V4a2 2 0 0 0-3.87-.7L6.5 5.66V8.5z'
+    : 'M5 10.5v-7H3.5A.5.5 0 0 0 3 4v6a.5.5 0 0 0 .5.5H5zm1.5 1V4A1.5 1.5 0 0 1 8 2.5h5.31a2 2 0 0 1 1.97 1.66l.94 5.5A1.5 1.5 0 0 1 14.74 11.5H11V16a2 2 0 0 1-3.87.7L6.5 14.34V11.5z'
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={fill} stroke={stroke} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  )
+}
+
+function AiMetaRow({ feedback, onFeedback }) {
+  return (
+    <div className="ai-meta-row">
+      <span className="ai-meta-label">
+        <AiSparkle size={11} />
+        AI-generated
+        <span className="ai-meta-tooltip" role="tooltip">AI-generated content. Verify important info.</span>
+      </span>
+      <span className="ai-meta-divider" aria-hidden="true">·</span>
+      <span className="ai-feedback">
+        <span className="ai-feedback-label">How was this response?</span>
+        <button
+          type="button"
+          className={`ai-feedback-btn ${feedback === 'up' ? 'ai-feedback-btn-active' : ''}`}
+          aria-pressed={feedback === 'up'}
+          aria-label="Thumbs up — this response was helpful"
+          onClick={() => onFeedback(feedback === 'up' ? null : 'up')}
+        >
+          <ThumbIcon direction="up" filled={feedback === 'up'} />
+        </button>
+        <button
+          type="button"
+          className={`ai-feedback-btn ${feedback === 'down' ? 'ai-feedback-btn-active' : ''}`}
+          aria-pressed={feedback === 'down'}
+          aria-label="Thumbs down — this response was not helpful"
+          onClick={() => onFeedback(feedback === 'down' ? null : 'down')}
+        >
+          <ThumbIcon direction="down" filled={feedback === 'down'} />
+        </button>
+      </span>
+    </div>
+  )
+}
+
+function ReferencesList({ citations }) {
+  if (!citations || !citations.length) return null
+  return (
+    <div className="ai-references">
+      <div className="ai-references-label">References</div>
+      <ol className="ai-references-list">
+        {citations.map((c, i) => (
+          <li key={i} className="ai-reference-item">
+            <span className="ai-reference-num">[{i + 1}]</span>
+            <span className="ai-reference-body">
+              <span className="ai-reference-title">{c.title}</span>
+              {c.source && <span className="ai-reference-source">{c.source}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+function SuggestedActions({ actions, onAction }) {
+  if (!actions || !actions.length) return null
+  return (
+    <div className="ai-suggested-actions">
+      {actions.map((a, i) => (
+        <button
+          key={i}
+          type="button"
+          className="ai-suggested-action"
+          onClick={() => onAction?.(a, i)}
+        >
+          {typeof a === 'string' ? a : a.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // Combine seeded-in-data reactions with the current user's reactions into an
 // ordered list of pills. `byMe: true` → purple outline in the UI.
 function buildReactionList(baseReactions, myEmojis) {
@@ -184,7 +282,7 @@ function AgentChip({ agentId }) {
   )
 }
 
-export default function MessageRow({ message, activeContact, onOpenThread, onPromote }) {
+export default function MessageRow({ message, activeContact, onOpenThread, onPromote, onSuggestedAction }) {
   const isMe = message.senderId === 'me'
   const isMultiParty = activeContact.isGroup || activeContact.isChannel
   const sender = isMe
@@ -203,6 +301,11 @@ export default function MessageRow({ message, activeContact, onOpenThread, onPro
     })
   }
   const reactions = buildReactionList(message.reactions, myReactions)
+
+  // Local feedback state — thumbs up / down on AI messages. Per-message,
+  // not persisted across reloads; that's enough for the prototype.
+  const [feedback, setFeedback] = useState(null)
+  const showAiChrome = message.aiGenerated && !message.streaming
 
   return (
     <div
@@ -250,13 +353,30 @@ export default function MessageRow({ message, activeContact, onOpenThread, onPro
             </div>
           )}
           {message.subject && <div className="message-subject">{message.subject}</div>}
-          {message.markdown ? (
-            <Markdown source={message.markdown} />
+          {message.markdown || message.streaming ? (
+            <>
+              {message.markdown && (
+                <Markdown source={message.markdown} citations={message.citations} />
+              )}
+              {message.streaming && <span className="md-cursor" aria-hidden="true" />}
+            </>
           ) : Array.isArray(message.text)
             ? message.text.map((part, i) =>
                 typeof part === 'string' ? part : <span key={i} className="mention">{part.name}</span>
               )
             : message.text}
+          {showAiChrome && message.citations && (
+            <ReferencesList citations={message.citations} />
+          )}
+          {showAiChrome && message.suggestedActions && (
+            <SuggestedActions
+              actions={message.suggestedActions}
+              onAction={(a, i) => onSuggestedAction?.(message, a, i)}
+            />
+          )}
+          {showAiChrome && (
+            <AiMetaRow feedback={feedback} onFeedback={setFeedback} />
+          )}
           {message.link && <LinkCard link={message.link} />}
           {message.cards && (
             <div className="message-cards">

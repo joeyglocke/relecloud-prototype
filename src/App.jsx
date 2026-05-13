@@ -118,24 +118,23 @@ export default function App() {
       {showFre && (
         <FreModal
           title="Meet Relecloud"
-          subtitle="A prototype of a Teams agent showcasing the modern UX investments the Teams SDK now offers — targeted messages, reactions, markdown, and promote-to-chat."
+          subtitle="A prototype showcasing seven modern UX investments the Teams SDK now offers — across a group chat and a 1:1 with Relecloud, the new travel concierge agent."
           onDismiss={dismissFre}
           dismissLabel="Start the demo"
         >
           <h3 className="fre-section-title">The scenario</h3>
           <p>
             You're Alex Morgan, planning a 2-day post-launch offsite with the
-            Northwind core team. Rachel kicked off the thread asking for a
-            venue shortlist. Rather than crowd the group with half-baked
-            options, you quietly ask Relecloud — the new Teams travel
-            concierge agent — for help.
+            Northwind core team. Rachel asked for a venue shortlist in the
+            group; rather than crowd the chat with half-baked options, you
+            quietly ask Relecloud for help — first targeted-in-group, then 1:1.
           </p>
 
-          <h3 className="fre-section-title">What to look for</h3>
+          <h3 className="fre-section-title">Part 1 — Group chat: targeted ask → promote-to-chat</h3>
           <p>
-            The chat opens with a draft already in the compose box: a
-            <strong> /Relecloud </strong> slash command. Hit <strong>Send</strong>
-            and watch the four investments fire in sequence:
+            Hit <strong>Send</strong> on the preloaded
+            <strong> /Relecloud </strong>
+            draft. Five things fire in sequence:
           </p>
           <div className="fre-feature-list">
             <div className="fre-feature">
@@ -144,8 +143,7 @@ export default function App() {
                 <div className="fre-feature-title">Targeted message</div>
                 <div className="fre-feature-desc">
                   Your slash command lands as a private bubble — only you and
-                  Relecloud can see it. The lock disclaimer names the agent
-                  explicitly.
+                  Relecloud can see it.
                 </div>
               </div>
             </div>
@@ -155,19 +153,20 @@ export default function App() {
                 <div className="fre-feature-title">Reaction acknowledgement</div>
                 <div className="fre-feature-desc">
                   Relecloud reacts <span aria-hidden="true">👀</span> on your
-                  message to signal it's working — no extra "got it" bubble
-                  needed.
+                  ask to signal it's working.
                 </div>
               </div>
             </div>
             <div className="fre-feature">
               <span className="fre-feature-check">3</span>
               <div className="fre-feature-text">
-                <div className="fre-feature-title">Markdown reply</div>
+                <div className="fre-feature-title">Markdown reply with AI label, citations &amp; feedback</div>
                 <div className="fre-feature-desc">
-                  Relecloud responds in another targeted bubble using real
-                  markdown — headings, bullets, bold, italics, links — so
-                  scannable structured content feels native to chat.
+                  A targeted markdown response — headings, bullets, bold,
+                  links — with a sparkle <strong>AI-generated</strong> label,
+                  inline <strong>[1]</strong> citation markers (hover for the
+                  source), a References list, suggested actions, and thumbs
+                  up/down feedback.
                 </div>
               </div>
             </div>
@@ -176,10 +175,49 @@ export default function App() {
               <div className="fre-feature-text">
                 <div className="fre-feature-title">Promote to chat</div>
                 <div className="fre-feature-desc">
-                  Click <strong>Post to chat</strong> on Relecloud's reply to
-                  share it with the whole group — attributed as
-                  "Shared from Relecloud" so everyone can see where it came
-                  from. Try reacting to it once it lands.
+                  Click <strong>Post to chat</strong> to share Relecloud's
+                  reply with the group — attributed as "Shared from Relecloud."
+                  The AI label and citations carry over.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h3 className="fre-section-title">Part 2 — 1:1 with Relecloud: streaming UX</h3>
+          <p>
+            Open the <strong>Relecloud</strong> chat in the sidebar and click
+            one of the prompt suggestion cards. Per the Teams SDK, streaming
+            is supported in 1:1 conversations only.
+          </p>
+          <div className="fre-feature-list">
+            <div className="fre-feature">
+              <span className="fre-feature-check">5</span>
+              <div className="fre-feature-text">
+                <div className="fre-feature-title">Token-by-token streaming</div>
+                <div className="fre-feature-desc">
+                  Relecloud's response builds up incrementally with a blinking
+                  caret — long answers feel responsive from the first word.
+                </div>
+              </div>
+            </div>
+            <div className="fre-feature">
+              <span className="fre-feature-check">6</span>
+              <div className="fre-feature-text">
+                <div className="fre-feature-title">Citations + feedback land on completion</div>
+                <div className="fre-feature-desc">
+                  Once the stream finishes, the AI label, hoverable citations,
+                  References list, and thumbs up/down attach to the message —
+                  matching the prescribed Teams agent message pattern.
+                </div>
+              </div>
+            </div>
+            <div className="fre-feature">
+              <span className="fre-feature-check">7</span>
+              <div className="fre-feature-text">
+                <div className="fre-feature-title">Suggested follow-ups</div>
+                <div className="fre-feature-desc">
+                  Each response ends with a row of suggested next-step chips,
+                  matching the SDK's <code>withSuggestedActions</code> pattern.
                 </div>
               </div>
             </div>

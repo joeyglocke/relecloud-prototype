@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   messagesByContact,
   contacts,
@@ -69,25 +69,47 @@ const relecloudReply = {
     '\n' +
     'Pulled options that fit 7 people, 2 nights in mid-May, with real meeting space (not a hotel boardroom).\n' +
     '\n' +
-    '### Salish Lodge & Spa — *Snoqualmie Falls*\n' +
+    '### Salish Lodge & Spa — *Snoqualmie Falls* [1]\n' +
     '- ~30 min drive from Seattle, easiest logistics\n' +
     '- **$2,940/night** group block · 7 rooms held\n' +
     '- Dedicated team room with whiteboards, fireplace lounge for evenings\n' +
     '- [Check availability May 12–13](#)\n' +
     '\n' +
-    '### Suncadia Resort — *Cle Elum*\n' +
+    '### Suncadia Resort — *Cle Elum* [2]\n' +
     '- 1h 20m drive, more "leave town" feel\n' +
     '- **$2,440/night** group block · 2-bedroom suites\n' +
     '- Full conference center + hiking trails, fire pits, optional river float\n' +
     '- [Check availability May 14–15](#)\n' +
     '\n' +
-    '### Roche Harbor Resort — *San Juan Island*\n' +
+    '### Roche Harbor Resort — *San Juan Island* [3]\n' +
     '- 3h via ferry, longer travel day but a real milestone trip\n' +
     '- **$3,180/night** waterfront cottages\n' +
     '- Sea kayaking, sunset dinner cruise, quietest of the three\n' +
     '- [Check availability May 19–20](#)\n' +
     '\n' +
     'My pick: **Suncadia.** Best balance of drive time, cost, and dedicated meeting space — and the off-site feel is stronger than Salish. Want me to draft a 2-day itinerary?',
+  citations: [
+    {
+      title: 'Salish Lodge & Spa — group rates & meeting rooms',
+      abstract: 'Group block pricing, meeting-room inventory, and seasonal availability for May 2026.',
+      source: 'salishlodge.com · Groups',
+    },
+    {
+      title: 'Suncadia Resort — corporate retreats',
+      abstract: 'Conference-center floorplan, 2-bedroom suite layout, and weekday group rates for spring 2026.',
+      source: 'destinationhotels.com/suncadia',
+    },
+    {
+      title: 'Roche Harbor Resort — meetings & events',
+      abstract: 'Waterfront cottage availability, ferry-day logistics, and dinner-cruise add-on pricing.',
+      source: 'rocheharbor.com · Groups',
+    },
+  ],
+  suggestedActions: [
+    'Draft a 2-day Suncadia itinerary',
+    'Compare flights vs. driving',
+    'Send a hold request to Suncadia',
+  ],
 }
 
 // ── Scripted Jira demo flow (disabled) ─────────────────────────────────────
@@ -165,6 +187,11 @@ export default function ChatView({
   // by the legacy "mainTypingAgentId === activeChatId" check that assumed
   // typing only happens in 1:1 agent chats.
   const [mainTypingChatId, setMainTypingChatId] = useState(null)
+  // Streaming state for the Relecloud 1:1. The ref carries the full target
+  // markdown + position; the state slot triggers the streaming effect.
+  // Per the Teams SDK, streaming is 1:1-only — don't reuse this in groups.
+  const streamingRef = useRef(null)
+  const [streamingKey, setStreamingKey] = useState(null)
   const [channelThreadPostId, setChannelThreadPostId] = useState(null)
   const [threadRailOpen, setThreadRailOpen] = useState(false)
   const [highlightMessageId, setHighlightMessageId] = useState(null)
@@ -554,6 +581,7 @@ export default function ChatView({
     }, 1400)
 
     // Step 3 — bot replies in a targeted markdown message with a "Post to chat" action.
+    // Includes AI metadata: ai-generated label, citations, and suggested actions.
     setTimeout(() => {
       setMainTypingAgentId((prev) => (prev === RELECLOUD_AGENT_ID ? null : prev))
       setMainTypingChatId((prev) => (prev === chatId ? null : prev))
@@ -569,6 +597,9 @@ export default function ChatView({
             isPrivate: true,
             privateWithAgentId: RELECLOUD_AGENT_ID,
             canPromote: true,
+            aiGenerated: true,
+            citations: relecloudReply.citations,
+            suggestedActions: relecloudReply.suggestedActions,
           },
         ],
       }))
@@ -587,17 +618,80 @@ export default function ChatView({
           m.id === message.id ? { ...m, promoted: true } : m
         ),
         // Append the same content as a regular (non-private) message from
-        // the current user, attributed to the source agent.
+        // the current user, attributed to the source agent. AI metadata
+        // travels with the content — it's still AI-generated and the
+        // citations + feedback are just as relevant in the public copy.
         {
           id: `promoted-${Date.now()}`,
           senderId: 'me',
           markdown: message.markdown,
           time: nowTimeStr(),
           sharedFromAgentId: RELECLOUD_AGENT_ID,
+          aiGenerated: true,
+          citations: message.citations,
+          suggestedActions: message.suggestedActions,
         },
       ],
     }))
   }
+
+  // ── Streaming engine (Relecloud 1:1) ───────────────────────────────────
+  // Per Microsoft's docs, streaming is supported in 1:1 conversations only,
+  // not group chats. The engine adds a placeholder message with markdown:''
+  // and streaming:true, then ticks the markdown forward one character at a
+  // time. When the target text is fully revealed, the placeholder is
+  // finalized with the supplied AI metadata (aiGenerated, citations,
+  // suggestedActions) — that's what flips the message into its "finished"
+  // visual state (label, references list, feedback, suggested-action chips).
+  const startStreaming = useCallback(({ chatId, fullMarkdown, finalize }) => {
+    const messageId = `rc-stream-${Date.now()}`
+    setExtraMessages((prev) => ({
+      ...prev,
+      [chatId]: [
+        ...(prev[chatId] || []),
+        {
+          id: messageId,
+          senderId: RELECLOUD_AGENT_ID,
+          markdown: '',
+          time: nowTimeStr(),
+          streaming: true,
+        },
+      ],
+    }))
+    streamingRef.current = { chatId, messageId, fullMarkdown, charIndex: 0, finalize }
+    setStreamingKey(messageId)
+  }, [])
+
+  useEffect(() => {
+    if (!streamingKey) return
+    const tick = setInterval(() => {
+      const s = streamingRef.current
+      if (!s) { clearInterval(tick); return }
+      // Reveal a few characters per tick — fast enough to feel real-time
+      // but slow enough to register as streaming, not as a paste.
+      const advance = 3
+      const next = Math.min(s.charIndex + advance, s.fullMarkdown.length)
+      s.charIndex = next
+      const partial = s.fullMarkdown.slice(0, next)
+      const done = next >= s.fullMarkdown.length
+      setExtraMessages((prev) => ({
+        ...prev,
+        [s.chatId]: (prev[s.chatId] || []).map((m) =>
+          m.id === s.messageId
+            ? done
+              ? { ...m, markdown: partial, streaming: false, ...s.finalize }
+              : { ...m, markdown: partial }
+            : m
+        ),
+      }))
+      if (done) {
+        clearInterval(tick)
+        streamingRef.current = null
+        setStreamingKey(null)
+      }
+    }, 28)
+    return () => clearInterval(tick)
+  }, [streamingKey])
 
   const handleSend = () => {
     if (!composeMention && !inputValue.trim()) return
@@ -670,6 +764,26 @@ export default function ChatView({
       [bucket]: [...(prev[bucket] || []), myMessage],
     }))
     finalizePendingSession(suggestion.text, suggestion.title)
+
+    // Relecloud 1:1 — when a prompt card carries a `streaming` block, use
+    // the streaming engine instead of the typing-then-canned-response path.
+    // This is the 1:1-only streaming surface (per Teams SDK docs).
+    if (chatId === RELECLOUD_AGENT_ID && suggestion.streaming) {
+      // Brief beat after the user's message before the stream starts —
+      // mimics the "thinking" pause real assistants show.
+      setTimeout(() => {
+        startStreaming({
+          chatId,
+          fullMarkdown: suggestion.streaming.markdown,
+          finalize: {
+            aiGenerated: true,
+            citations: suggestion.streaming.citations,
+            suggestedActions: suggestion.streaming.suggestedActions,
+          },
+        })
+      }, 500)
+      return
+    }
 
     // Typing indicator then the prepared response.
     setMainTypingAgentId(chatId)
