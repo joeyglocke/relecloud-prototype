@@ -5,16 +5,66 @@
 // deps). The output is a valid Store-method zip — sufficient for Teams.
 
 import { Buffer } from 'node:buffer';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const APP_PKG = join(__dirname, '..', 'appPackage');
+const BOT_DIR = join(__dirname, '..');
+const APP_PKG = join(BOT_DIR, 'appPackage');
 const OUT_PATH = join(APP_PKG, 'relecloud.zip');
 
 const FILES = ['manifest.json', 'color.png', 'outline.png'];
+
+// ── .env loader (no dotenv dep) — read BOT_ID / TEAMS_APP_ID and use to
+// substitute the manifest's ${{…}} placeholders on the way into the zip.
+// Reads .env from the bot/ root if it exists. Falls back to process.env.
+function loadEnv() {
+  const envPath = join(BOT_DIR, '.env');
+  const env = { ...process.env };
+  if (existsSync(envPath)) {
+    const text = readFileSync(envPath, 'utf8');
+    for (const rawLine of text.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq < 0) continue;
+      const k = line.slice(0, eq).trim();
+      let v = line.slice(eq + 1).trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1);
+      }
+      if (env[k] == null) env[k] = v;
+    }
+  }
+  return env;
+}
+
+const ENV = loadEnv();
+// Teams CLI sets BOT_ID and (depending on version) writes TEAMS_APP_ID too.
+// When TEAMS_APP_ID isn't separately set, the Teams-managed bot uses the same
+// GUID for both — matching `teams app create`'s output.
+const BOT_ID = ENV.BOT_ID ?? '';
+const TEAMS_APP_ID = ENV.TEAMS_APP_ID ?? BOT_ID;
+
+if (!BOT_ID) {
+  console.error(
+    '!! BOT_ID is not set in .env or the environment.\n' +
+      '   Run `teams app create --name "Relecloud" --env .env` first,\n' +
+      '   or paste an existing AAD app ID into bot/.env.',
+  );
+  process.exit(1);
+}
+
+function applySubstitutions(name, raw) {
+  if (name !== 'manifest.json') return raw;
+  const text = raw
+    .toString('utf8')
+    .replace(/\$\{\{\s*TEAMS_APP_ID\s*\}\}/g, TEAMS_APP_ID)
+    .replace(/\$\{\{\s*BOT_ID\s*\}\}/g, BOT_ID);
+  return Buffer.from(text, 'utf8');
+}
 
 // CRC32 (same polynomial used in zip)
 const CRC_TABLE = (() => {
@@ -50,7 +100,8 @@ let offset = 0;
 const localParts = [];
 
 for (const name of FILES) {
-  const data = readFileSync(join(APP_PKG, name));
+  const raw = readFileSync(join(APP_PKG, name));
+  const data = applySubstitutions(name, raw);
   const compressed = deflateRawSync(data);
   const useDeflate = compressed.length < data.length;
   const payload = useDeflate ? compressed : data;
@@ -126,3 +177,5 @@ const eocd = Buffer.concat([
 mkdirSync(APP_PKG, { recursive: true });
 writeFileSync(OUT_PATH, Buffer.concat([...localParts, central, eocd]));
 console.log(`wrote ${OUT_PATH} (${entries.length} files)`);
+console.log(`  BOT_ID:       ${BOT_ID}`);
+console.log(`  TEAMS_APP_ID: ${TEAMS_APP_ID}`);

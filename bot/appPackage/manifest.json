@@ -1,9 +1,8 @@
 {
-  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
-  "manifestVersion": "1.19",
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
   "version": "0.1.0",
   "id": "${{TEAMS_APP_ID}}",
-  "packageName": "com.relecloud.bot",
   "developer": {
     "name": "Relecloud Demo",
     "websiteUrl": "https://joeyglocke.github.io/relecloud-prototype/",
@@ -19,7 +18,7 @@
     "full": "Relecloud — travel & offsite concierge"
   },
   "description": {
-    "short": "Travel and offsite venue concierge — slash commands, targeted replies, streaming.",
+    "short": "Teams agent UX demo — slash, targeted msgs, citations, streaming.",
     "full": "Relecloud is a Teams agent prototype showcasing the modern Teams SDK UX investments end-to-end: slash commands and targeted messages in group chats, with AI-generated label, citations, feedback, and a promote-to-chat action; plus streaming, citations, and suggested follow-ups in 1:1 conversations. All data is mocked — this is a demo agent for showcasing UX, not a production travel assistant."
   },
   "accentColor": "#0F6CBD",
