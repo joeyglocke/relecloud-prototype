@@ -1,0 +1,31 @@
+{
+  "name": "relecloud-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Teams agent prototype showcasing slash commands, targeted messages, AI label, citations, feedback, suggested actions, and 1:1 streaming.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "icons": "node scripts/generate-icons.mjs",
+    "package": "node scripts/package-app.mjs",
+    "prepackage": "npm run icons"
+  },
+  "dependencies": {
+    "@microsoft/teams.api": "preview",
+    "@microsoft/teams.apps": "preview",
+    "@microsoft/teams.cards": "preview",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,3 +1,14 @@
+# Relecloud — Teams agent UX prototype
+
+This fork showcases the modern Teams agent UX investments end-to-end via a fictional **Relecloud** travel concierge bot. Two surfaces:
+
+- **React UI prototype** (this repo's `src/`) — high-fidelity static Teams shell demonstrating slash commands, targeted messages, reactions, markdown, AI label, citations, feedback, suggested actions, promote-to-chat, and 1:1 streaming. Live at **[joeyglocke.github.io/relecloud-prototype](https://joeyglocke.github.io/relecloud-prototype/)**.
+- **Sideloadable Teams bot** in [`bot/`](bot/) — TypeScript Teams SDK agent mirroring the same scenarios + mock data, runnable in your own tenant. See [`bot/README.md`](bot/README.md) for the Teams CLI quickstart and sideload steps.
+
+The remainder of this README is the upstream Teams Shell documentation that the React prototype is built on.
+
+---
+
 # Teams Shell
 
 A high-fidelity static shell of the Microsoft Teams Chat UI, meant as a starting point for prototyping new Teams features. Fork this repo, drop in your idea, and you'll have a realistic-looking Teams surface from day one — so the prototyping work goes into the feature, not the chrome.

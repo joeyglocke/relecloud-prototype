@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+appPackage/build/
+appPackage/*.zip
+
+# OS / editor noise
+.DS_Store
+.vscode/
+.idea/
