@@ -36,6 +36,13 @@ const app = new App({
   clientId,
   clientSecret,
   ...(tenantId ? { tenantId } : {}),
+  // When a chip is clicked in a group chat, Teams auto-prefixes the
+  // bot's @-mention to the posted message text (e.g. "Relecloud 📣 Post
+  // to chat"). Stripping the `<at>…</at>` mention from inbound text
+  // means our routing can match on the chip's friendly value alone.
+  activity: {
+    mentions: { stripText: true },
+  },
 });
 
 // ───────────── Inbound message handler ─────────────
@@ -53,12 +60,16 @@ app.on('message', async (ctx: any) => {
   }
 
   // Group / channel — Post-to-chat takes priority. The "📣 Post to chat"
-  // chip is a `postBack` suggested action; clicking it sends the sentinel
-  // value silently to the bot (no visible user message in the chat). The
-  // sentinel arrives in `activity.value` for postBack — we also check
-  // `activity.text` defensively in case a client routes it there.
+  // chip is an `imBack` suggested action whose value === the visible
+  // title, so the chat shows "📣 Post to chat" when clicked. Even with
+  // mention-stripping enabled in App config, contains-match the token
+  // defensively in case a client formats it differently.
   const value = ctx.activity?.value;
-  if (text === POST_TO_CHAT_TOKEN || value === POST_TO_CHAT_TOKEN) {
+  if (
+    text === POST_TO_CHAT_TOKEN ||
+    text.includes(POST_TO_CHAT_TOKEN) ||
+    value === POST_TO_CHAT_TOKEN
+  ) {
     await handlePromoteToChat(ctx);
     return;
   }
