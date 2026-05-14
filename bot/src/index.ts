@@ -90,6 +90,68 @@ app.on('conversationUpdate', async (ctx: any) => {
   }
 });
 
+// ───────────── Feedback (thumbs up / down) ─────────────
+//
+// Bot messages that called `.addFeedback()` get thumbs up / down buttons in
+// Teams. When the user clicks one and submits the optional comment dialog,
+// Teams sends a `message.submit.feedback` invoke activity here. The
+// `activity.value.actionValue` carries the reaction (`like` / `dislike`)
+// and a JSON-encoded `feedback` string with the user's comment.
+//
+// For the prototype we log + keep a small in-memory store keyed by the
+// agent message id. Swap in real persistence (Cosmos, blob, etc.) before
+// shipping anything user-facing.
+
+type FeedbackRecord = {
+  likes: number;
+  dislikes: number;
+  comments: string[];
+};
+
+const feedbackStore = new Map<string, FeedbackRecord>();
+
+app.on('message.submit.feedback' as any, async (ctx: any) => {
+  const value = ctx.activity?.value?.actionValue ?? {};
+  const reaction: string | undefined = value.reaction;
+  const feedbackJson: string | undefined = value.feedback;
+  const replyToId: string | undefined = ctx.activity?.replyToId;
+
+  if (!replyToId) {
+    // eslint-disable-next-line no-console
+    console.warn('feedback: no replyToId on activity', ctx.activity?.id);
+    return;
+  }
+
+  let parsedComment = '';
+  if (feedbackJson) {
+    try {
+      const parsed = JSON.parse(feedbackJson);
+      parsedComment = parsed.feedbackText ?? '';
+    } catch {
+      parsedComment = feedbackJson;
+    }
+  }
+
+  const existing = feedbackStore.get(replyToId) ?? {
+    likes: 0,
+    dislikes: 0,
+    comments: [],
+  };
+  const updated: FeedbackRecord = {
+    likes: existing.likes + (reaction === 'like' ? 1 : 0),
+    dislikes: existing.dislikes + (reaction === 'dislike' ? 1 : 0),
+    comments: parsedComment ? [...existing.comments, parsedComment] : existing.comments,
+  };
+  feedbackStore.set(replyToId, updated);
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `feedback received: reaction=${reaction} replyToId=${replyToId} ` +
+      `comment=${JSON.stringify(parsedComment)} ` +
+      `totals={likes:${updated.likes}, dislikes:${updated.dislikes}}`,
+  );
+});
+
 // ───────────── Boot ─────────────
 
 await app.start(PORT);

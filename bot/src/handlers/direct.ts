@@ -29,7 +29,13 @@ export async function handleDirectMessage(ctx: ActivityContext): Promise<void> {
       "In the meantime, the prompt suggestions in this chat are good shortcuts.";
     for (const chunk of chunkify(fallback, 3)) {
       stream.emit(chunk);
+      await sleep(28);
     }
+    // Final emit attaches the AI label + feedback buttons to the
+    // finalized message (Teams shows thumbs up/down inline below).
+    stream.emit(
+      new MessageActivity(fallback).addAiGenerated().addFeedback(),
+    );
     return;
   }
 
@@ -37,7 +43,9 @@ export async function handleDirectMessage(ctx: ActivityContext): Promise<void> {
   await send(
     new MessageActivity(
       "Working on it — let me pull a few sources and come back.",
-    ).addAiGenerated(),
+    )
+      .addAiGenerated()
+      .addFeedback(),
   );
 }
 
@@ -68,10 +76,12 @@ async function streamPromptResponse(
     await sleep(28);
   }
 
-  // Closing emit — full activity with AI metadata, citations, and the
-  // suggested-action follow-up chips. This is what the Teams client
-  // displays once the stream finishes.
-  const final = new MessageActivity(prompt.markdown).addAiGenerated();
+  // Closing emit — full activity with AI metadata, citations, feedback
+  // buttons, and the suggested-action follow-up chips. This is what the
+  // Teams client displays once the stream finishes.
+  const final = new MessageActivity(prompt.markdown)
+    .addAiGenerated()
+    .addFeedback();
 
   prompt.citations.forEach((c, i) => {
     final.addCitation(i + 1, { name: c.name, abstract: c.abstract });
