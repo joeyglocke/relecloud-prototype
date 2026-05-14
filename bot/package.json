@@ -13,9 +13,9 @@
     "prepackage": "npm run icons"
   },
   "dependencies": {
-    "@microsoft/teams.api": "preview",
-    "@microsoft/teams.apps": "preview",
-    "@microsoft/teams.cards": "preview",
+    "@microsoft/teams.api": "^2.0.10",
+    "@microsoft/teams.apps": "^2.0.10",
+    "@microsoft/teams.cards": "^2.0.10",
     "dotenv": "^16.4.5",
     "express": "^4.21.0"
   },

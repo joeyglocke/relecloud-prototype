@@ -17,30 +17,19 @@ export function isRelecloudSlashCommand(text: string): boolean {
 }
 
 /**
- * Best-effort: tag the outgoing message as a targeted reply when the user's
- * incoming slash command was targeted.
+ * Mirror the incoming message's targeting: if the user invoked us with a
+ * targeted (slash-command / private) message, reply privately to the same
+ * user. The SDK's canonical `withRecipient(account, isTargeted)` overload
+ * is the documented way to do this.
  *
- * **Important SDK caveat (preview-12):** the installed `@microsoft/teams.api`
- * doesn't yet expose first-class targeted-message sending. `withRecipient`
- * only takes one argument; there's no flag, no `isTargetedActivity` option
- * on `ActivityParams`, and the REST query param the Bot Framework requires
- * (`?isTargetedActivity=true`) isn't surfaced. Until the SDK ships proper
- * support, we do two things:
- *   1. Set `recipient` to the invoking user — semantically correct, and a
- *      no-op if the SDK ignores it for group replies.
- *   2. Stuff a loose `targetedActivity: true` hint into channelData — the
- *      type allows arbitrary properties, and if Teams' service honors it,
- *      we get a targeted reply for free; if not, no harm done.
- * When the SDK adds `.withRecipient(account, true)` (or equivalent),
- * replace this helper with the proper call.
+ * Call this as the *last* builder step before `send` so no other builder
+ * call accidentally clobbers the targeting state.
  */
 function applyTargetingIfNeeded(ctx: ActivityContext, message: MessageActivity): MessageActivity {
   const isTargeted = Boolean(ctx.activity.recipient?.isTargeted);
   const from = ctx.activity.from;
   if (isTargeted && from) {
-    message.withRecipient(from);
-    // Loose-typed escape hatch — see comment block above.
-    message.withChannelData({ targetedActivity: true } as any);
+    message.withRecipient(from, true);
   }
   return message;
 }

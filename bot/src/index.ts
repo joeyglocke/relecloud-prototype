@@ -110,7 +110,7 @@ type FeedbackRecord = {
 
 const feedbackStore = new Map<string, FeedbackRecord>();
 
-app.on('message.submit.feedback' as any, async (ctx: any) => {
+app.on('message.submit.feedback', async (ctx: any) => {
   const value = ctx.activity?.value?.actionValue ?? {};
   const reaction: string | undefined = value.reaction;
   const feedbackJson: string | undefined = value.feedback;
