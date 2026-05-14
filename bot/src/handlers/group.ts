@@ -1,12 +1,23 @@
-import { MessageActivity, cardAttachment } from '@microsoft/teams.api';
-import { AdaptiveCard, ExecuteAction, TextBlock } from '@microsoft/teams.cards';
+import { MessageActivity } from '@microsoft/teams.api';
 import type { ActivityContext } from './types.js';
 import { VENUE_REPLY } from '../data/venues.js';
 
-// Verb on the Adaptive Card Action.Execute button. The bot routes the
-// resulting `adaptiveCard/action` invoke via this verb. Keep in sync
-// with the route registered in src/index.ts.
-export const POST_TO_CHAT_VERB = 'postToChat';
+// Sentinel `text` value the bot receives when the user clicks the
+// "📣 Post to chat" chip on the targeted reply. The chip is a
+// `messageBack` suggested action, so the user-visible chat text is
+// `displayText` (a friendly "Sharing this with the group…" line),
+// while the bot sees this token in `activity.text` and routes to
+// handlePromoteToChat.
+//
+// Why messageBack and not Action.Execute on an Adaptive Card?
+// The Teams targeted-message preview endpoint rejects activities that
+// combine markdown text with an attachment (`BadSyntax: field is in
+// the wrong format: text`), so the silent-invoke pattern can't ride on
+// the same bubble as the venue reply. messageBack with displayText
+// gets us close — one brief user-side message (the displayText) then
+// the bot's public reply. Revisit when the targeted endpoint accepts
+// attachments.
+export const POST_TO_CHAT_TOKEN = '__relecloud_post_to_chat__';
 
 // Heuristic for slash-command invocations across clients. Some Teams
 // surfaces pass `/relecloud …` verbatim in `activity.text`; others rewrite
@@ -36,43 +47,13 @@ function applyTargetingIfNeeded(ctx: ActivityContext, message: MessageActivity):
 }
 
 /**
- * Build a small Adaptive Card whose only purpose is to carry a silent
- * `Action.Execute` button for "📣 Post to chat". Clicking the button
- * fires an `adaptiveCard/action` invoke to the bot — there's no visible
- * user-side message in between, unlike an `imBack` suggested-action
- * chip.
+ * Build the standard Relecloud venue reply: markdown body + AI label +
+ * three citations + thumbs feedback + suggested-action chips. Optionally
+ * prepends the "📣 Post to chat" chip (messageBack with friendly
+ * displayText) so the targeted reply gives the user a one-click way to
+ * promote the suggestion publicly.
  */
-function buildPostToChatCard(): ReturnType<typeof cardAttachment<'adaptive'>> {
-  const card = new AdaptiveCard(
-    new TextBlock({
-      text: 'Share Relecloud\'s recommendation with the group?',
-      wrap: true,
-      size: 'Small',
-      isSubtle: true,
-    } as any),
-  ).withOptions({
-    actions: [
-      new ExecuteAction({
-        title: '📣 Post to chat',
-        verb: POST_TO_CHAT_VERB,
-      }),
-    ],
-  } as any);
-
-  return cardAttachment('adaptive', card);
-}
-
-/**
- * Build the standard Relecloud venue reply body: markdown text + AI
- * label + three citations + thumbs feedback + three follow-up chips
- * (Draft itinerary / Compare flights / Send hold request) as imBack
- * suggested actions. The Post-to-chat card rides on a separate activity
- * (see handleGroupSlashCommand) — combining text + Adaptive Card
- * attachment in a single targeted activity is rejected by the preview
- * targeted-message endpoint with `BadSyntax: field is in the wrong
- * format: text`.
- */
-function buildVenueReply(ctx: ActivityContext): MessageActivity {
+function buildVenueReply(ctx: ActivityContext, includePostToChatChip: boolean): MessageActivity {
   const reply = new MessageActivity(VENUE_REPLY.markdown)
     .addAiGenerated()
     .addFeedback();
@@ -84,49 +65,57 @@ function buildVenueReply(ctx: ActivityContext): MessageActivity {
     });
   });
 
+  const followUpActions = VENUE_REPLY.suggestedActions.map((s) => ({
+    type: 'imBack' as const,
+    title: s,
+    value: s,
+  }));
+
   reply.withSuggestedActions({
     to: [ctx.activity.from.id],
-    actions: VENUE_REPLY.suggestedActions.map((s) => ({
-      type: 'imBack' as const,
-      title: s,
-      value: s,
-    })),
+    actions: includePostToChatChip
+      ? [
+          {
+            type: 'messageBack' as const,
+            title: '📣 Post to chat',
+            // Bot-only: routed in index.ts via text comparison.
+            text: POST_TO_CHAT_TOKEN,
+            value: POST_TO_CHAT_TOKEN,
+            // User-visible text in the chat instead of the raw token.
+            displayText: '📣 Sharing this with the group…',
+          } as any,
+          ...followUpActions,
+        ]
+      : followUpActions,
   });
 
   return reply;
 }
 
 /**
- * Group / channel slash-command handler. Sends two targeted activities:
- *   1. The markdown venue reply with AI metadata, citations, thumbs
- *      feedback, and three follow-up imBack chips.
- *   2. A second tiny targeted activity carrying only the Post-to-chat
- *      Adaptive Card (Action.Execute → silent invoke). Split out from
- *      (1) because the preview targeted-message endpoint refuses a
- *      payload that combines markdown text with an Adaptive Card
- *      attachment.
+ * Group / channel slash-command handler. Sends a single targeted
+ * (private) reply: markdown venue list + AI metadata + citations +
+ * thumbs feedback + Post-to-chat chip + three follow-up chips.
  */
 export async function handleGroupSlashCommand(
   ctx: ActivityContext,
 ): Promise<void> {
-  const reply = buildVenueReply(ctx);
+  const reply = buildVenueReply(ctx, /* includePostToChatChip */ true);
+  // Apply targeting last so no other builder call drops it.
   applyTargetingIfNeeded(ctx, reply);
   await ctx.send(reply);
-
-  const cardMsg = new MessageActivity('').addAttachments(buildPostToChatCard());
-  applyTargetingIfNeeded(ctx, cardMsg);
-  await ctx.send(cardMsg);
 }
 
 /**
- * Fired when the user clicks "📣 Post to chat" on the targeted reply's
- * Adaptive Card. The click arrives as an `adaptiveCard/action` invoke
- * (silent — no visible user message in the chat), and we respond by
- * sending the same content as a regular (public) message to the whole
- * group. AI metadata + citations + feedback carry over.
+ * Fired when the user clicks the "📣 Post to chat" chip on the targeted
+ * reply. The click arrives as a regular incoming message with
+ * `activity.text === POST_TO_CHAT_TOKEN` (and `displayText` shows the
+ * friendly "Sharing this with the group…" in the chat). The bot
+ * responds with the same content as a public message visible to the
+ * whole group — AI metadata + citations + feedback preserved.
  */
 export async function handlePromoteToChat(ctx: ActivityContext): Promise<void> {
-  const reply = buildVenueReply(ctx);
+  const reply = buildVenueReply(ctx, /* includePostToChatChip */ false);
   // No `withRecipient(..., true)` — this is the public version.
   await ctx.send(reply);
 }

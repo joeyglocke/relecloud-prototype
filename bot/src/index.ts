@@ -16,7 +16,7 @@ import {
   handleGroupSlashCommand,
   handlePromoteToChat,
   isRelecloudSlashCommand,
-  POST_TO_CHAT_VERB,
+  POST_TO_CHAT_TOKEN,
 } from './handlers/group.js';
 import { handleDirectMessage, sendDirectWelcome } from './handlers/direct.js';
 
@@ -52,6 +52,16 @@ app.on('message', async (ctx: any) => {
     return;
   }
 
+  // Group / channel — Post-to-chat takes priority. The "📣 Post to chat"
+  // chip is a `messageBack` suggested action; clicking it sends an
+  // incoming message with `activity.text === POST_TO_CHAT_TOKEN` while
+  // showing the user-friendly displayText in the chat. Bot responds with
+  // the public promoted reply.
+  if (text === POST_TO_CHAT_TOKEN) {
+    await handlePromoteToChat(ctx);
+    return;
+  }
+
   // Slash command in a group → targeted message reply. The canonical
   // signal is `recipient.isTargeted` (set by Teams when the user invokes
   // via `/`), with the `/relecloud` text prefix as a fallback for clients
@@ -81,22 +91,6 @@ app.on('conversationUpdate', async (ctx: any) => {
   if (userAdded) {
     await sendDirectWelcome(ctx);
   }
-});
-
-// ───────────── Adaptive Card actions (Post to chat) ─────────────
-//
-// The targeted-reply Adaptive Card carries a single `Action.Execute`
-// button with verb `postToChat`. Clicking it sends an
-// `adaptiveCard/action` invoke to the bot — silent, no visible user
-// message in the chat. The bot responds by sending the same venue
-// content as a regular public message, attributed by the AI label +
-// citations + thumbs feedback.
-
-app.on(`card.action.${POST_TO_CHAT_VERB}`, async (ctx: any) => {
-  await handlePromoteToChat(ctx);
-  // Invoke handlers must return an InvokeResponse — `{ status: 200 }`
-  // signals "handled, no body" so Teams doesn't show an error popup.
-  return { status: 200 };
 });
 
 // ───────────── Feedback (thumbs up / down) ─────────────
