@@ -1,11 +1,12 @@
-import { MessageActivity } from '@microsoft/teams.api';
+import { MessageActivity, cardAttachment } from '@microsoft/teams.api';
+import { AdaptiveCard, ExecuteAction, TextBlock } from '@microsoft/teams.cards';
 import type { ActivityContext } from './types.js';
 import { VENUE_REPLY } from '../data/venues.js';
 
-// Token written into the suggested-action `value` so the bot can recognize
-// the user clicking "Post to chat" from a regular utterance and respond
-// with a public version of the previously-targeted reply.
-export const POST_TO_CHAT_TOKEN = '__relecloud_post_to_chat__';
+// Verb on the Adaptive Card Action.Execute button. The bot routes the
+// resulting `adaptiveCard/action` invoke via this verb. Keep in sync
+// with the route registered in src/index.ts.
+export const POST_TO_CHAT_VERB = 'postToChat';
 
 // Heuristic for slash-command invocations across clients. Some Teams
 // surfaces pass `/relecloud …` verbatim in `activity.text`; others rewrite
@@ -19,8 +20,8 @@ export function isRelecloudSlashCommand(text: string): boolean {
 /**
  * Mirror the incoming message's targeting: if the user invoked us with a
  * targeted (slash-command / private) message, reply privately to the same
- * user. The SDK's canonical `withRecipient(account, isTargeted)` overload
- * is the documented way to do this.
+ * user via the SDK's canonical `withRecipient(account, isTargeted)`
+ * overload.
  *
  * Call this as the *last* builder step before `send` so no other builder
  * call accidentally clobbers the targeting state.
@@ -35,11 +36,39 @@ function applyTargetingIfNeeded(ctx: ActivityContext, message: MessageActivity):
 }
 
 /**
- * Build the standard Relecloud venue reply: markdown body + AI label +
- * three citations + feedback buttons + the suggested-action chip row
- * (with the "📣 Post to chat" sentinel chip prepended).
+ * Build a small Adaptive Card whose only purpose is to carry a silent
+ * `Action.Execute` button for "📣 Post to chat". Clicking the button
+ * fires an `adaptiveCard/action` invoke to the bot — there's no visible
+ * user-side message in between, unlike an `imBack` suggested-action
+ * chip.
  */
-function buildVenueReply(ctx: ActivityContext, includePostToChatChip: boolean): MessageActivity {
+function buildPostToChatCard(): ReturnType<typeof cardAttachment<'adaptive'>> {
+  const card = new AdaptiveCard(
+    new TextBlock({
+      text: 'Share Relecloud\'s recommendation with the group?',
+      wrap: true,
+      size: 'Small',
+      isSubtle: true,
+    } as any),
+  ).withOptions({
+    actions: [
+      new ExecuteAction({
+        title: '📣 Post to chat',
+        verb: POST_TO_CHAT_VERB,
+      }),
+    ],
+  } as any);
+
+  return cardAttachment('adaptive', card);
+}
+
+/**
+ * Build the standard Relecloud venue reply body: markdown text + AI
+ * label + three citations + thumbs feedback + three follow-up chips
+ * (Draft itinerary / Compare flights / Send hold request) as imBack
+ * suggested actions. Optionally attaches the Post-to-chat Adaptive Card.
+ */
+function buildVenueReply(ctx: ActivityContext, includePostToChatCard: boolean): MessageActivity {
   const reply = new MessageActivity(VENUE_REPLY.markdown)
     .addAiGenerated()
     .addFeedback();
@@ -51,56 +80,45 @@ function buildVenueReply(ctx: ActivityContext, includePostToChatChip: boolean): 
     });
   });
 
-  const followUpActions = VENUE_REPLY.suggestedActions.map((s) => ({
-    type: 'imBack' as const,
-    title: s,
-    value: s,
-  }));
-
   reply.withSuggestedActions({
     to: [ctx.activity.from.id],
-    actions: includePostToChatChip
-      ? [
-          {
-            type: 'imBack' as const,
-            title: '📣 Post to chat',
-            value: POST_TO_CHAT_TOKEN,
-          },
-          ...followUpActions,
-        ]
-      : followUpActions,
+    actions: VENUE_REPLY.suggestedActions.map((s) => ({
+      type: 'imBack' as const,
+      title: s,
+      value: s,
+    })),
   });
+
+  if (includePostToChatCard) {
+    reply.addAttachments(buildPostToChatCard());
+  }
 
   return reply;
 }
 
 /**
- * Group / channel handler. The slash command becomes a targeted (private)
- * reply with the markdown venue list, AI metadata, citations, feedback,
- * and a "Post to chat" suggested action that promotes the content to the
- * whole group.
+ * Group / channel slash-command handler. Sends a targeted (private)
+ * reply with the markdown venue list + AI metadata + citations +
+ * thumbs feedback + three follow-up chips + a Post-to-chat card.
  */
 export async function handleGroupSlashCommand(
   ctx: ActivityContext,
 ): Promise<void> {
-  // Include the "📣 Post to chat" chip in the targeted reply so the user
-  // can broadcast Relecloud's suggestion if it's useful to the group.
-  const reply = buildVenueReply(ctx, /* includePostToChatChip */ true);
-  // Always apply targeting LAST so no other builder call accidentally drops it.
+  const reply = buildVenueReply(ctx, /* includePostToChatCard */ true);
+  // Apply targeting last so no other builder call drops it.
   applyTargetingIfNeeded(ctx, reply);
   await ctx.send(reply);
 }
 
 /**
- * Fired when the user clicks the "Post to chat" chip on the previous
- * targeted message. The same content is re-sent as a regular (public)
- * message visible to the whole group, with AI metadata + citations
- * preserved — the content is still AI-generated even after promotion.
- *
- * Public on purpose: no `withRecipient` here. The follow-up chips stay
- * attached so anyone in the group can riff on them.
+ * Fired when the user clicks "📣 Post to chat" on the targeted reply's
+ * Adaptive Card. The click arrives as an `adaptiveCard/action` invoke
+ * (silent — no visible user message in the chat), and we respond by
+ * sending the same content as a regular (public) message to the whole
+ * group. AI metadata + citations + feedback carry over.
  */
 export async function handlePromoteToChat(ctx: ActivityContext): Promise<void> {
-  const reply = buildVenueReply(ctx, /* includePostToChatChip */ false);
+  const reply = buildVenueReply(ctx, /* includePostToChatCard */ false);
+  // No `withRecipient(..., true)` — this is the public version.
   await ctx.send(reply);
 }
