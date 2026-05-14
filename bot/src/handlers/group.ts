@@ -66,9 +66,13 @@ function buildPostToChatCard(): ReturnType<typeof cardAttachment<'adaptive'>> {
  * Build the standard Relecloud venue reply body: markdown text + AI
  * label + three citations + thumbs feedback + three follow-up chips
  * (Draft itinerary / Compare flights / Send hold request) as imBack
- * suggested actions. Optionally attaches the Post-to-chat Adaptive Card.
+ * suggested actions. The Post-to-chat card rides on a separate activity
+ * (see handleGroupSlashCommand) — combining text + Adaptive Card
+ * attachment in a single targeted activity is rejected by the preview
+ * targeted-message endpoint with `BadSyntax: field is in the wrong
+ * format: text`.
  */
-function buildVenueReply(ctx: ActivityContext, includePostToChatCard: boolean): MessageActivity {
+function buildVenueReply(ctx: ActivityContext): MessageActivity {
   const reply = new MessageActivity(VENUE_REPLY.markdown)
     .addAiGenerated()
     .addFeedback();
@@ -89,25 +93,29 @@ function buildVenueReply(ctx: ActivityContext, includePostToChatCard: boolean): 
     })),
   });
 
-  if (includePostToChatCard) {
-    reply.addAttachments(buildPostToChatCard());
-  }
-
   return reply;
 }
 
 /**
- * Group / channel slash-command handler. Sends a targeted (private)
- * reply with the markdown venue list + AI metadata + citations +
- * thumbs feedback + three follow-up chips + a Post-to-chat card.
+ * Group / channel slash-command handler. Sends two targeted activities:
+ *   1. The markdown venue reply with AI metadata, citations, thumbs
+ *      feedback, and three follow-up imBack chips.
+ *   2. A second tiny targeted activity carrying only the Post-to-chat
+ *      Adaptive Card (Action.Execute → silent invoke). Split out from
+ *      (1) because the preview targeted-message endpoint refuses a
+ *      payload that combines markdown text with an Adaptive Card
+ *      attachment.
  */
 export async function handleGroupSlashCommand(
   ctx: ActivityContext,
 ): Promise<void> {
-  const reply = buildVenueReply(ctx, /* includePostToChatCard */ true);
-  // Apply targeting last so no other builder call drops it.
+  const reply = buildVenueReply(ctx);
   applyTargetingIfNeeded(ctx, reply);
   await ctx.send(reply);
+
+  const cardMsg = new MessageActivity('').addAttachments(buildPostToChatCard());
+  applyTargetingIfNeeded(ctx, cardMsg);
+  await ctx.send(cardMsg);
 }
 
 /**
@@ -118,7 +126,7 @@ export async function handleGroupSlashCommand(
  * group. AI metadata + citations + feedback carry over.
  */
 export async function handlePromoteToChat(ctx: ActivityContext): Promise<void> {
-  const reply = buildVenueReply(ctx, /* includePostToChatCard */ false);
+  const reply = buildVenueReply(ctx);
   // No `withRecipient(..., true)` — this is the public version.
   await ctx.send(reply);
 }
