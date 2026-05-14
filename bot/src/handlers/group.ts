@@ -2,21 +2,23 @@ import { MessageActivity } from '@microsoft/teams.api';
 import type { ActivityContext } from './types.js';
 import { VENUE_REPLY } from '../data/venues.js';
 
-// Sentinel `text` value the bot receives when the user clicks the
-// "📣 Post to chat" chip on the targeted reply. The chip is a
-// `messageBack` suggested action, so the user-visible chat text is
-// `displayText` (a friendly "Sharing this with the group…" line),
-// while the bot sees this token in `activity.text` and routes to
-// handlePromoteToChat.
+// Sentinel `value` the bot receives when the user clicks the
+// "📣 Post to chat" chip. The chip is a `postBack` suggested action —
+// Bot Framework's silent-suggested-action type. Clicking it sends the
+// value to the bot but does NOT post a visible user message in the
+// chat (unlike `imBack`, which always posts the value as visible text).
 //
-// Why messageBack and not Action.Execute on an Adaptive Card?
+// Why postBack and not Action.Execute on an Adaptive Card?
 // The Teams targeted-message preview endpoint rejects activities that
 // combine markdown text with an attachment (`BadSyntax: field is in
 // the wrong format: text`), so the silent-invoke pattern can't ride on
-// the same bubble as the venue reply. messageBack with displayText
-// gets us close — one brief user-side message (the displayText) then
-// the bot's public reply. Revisit when the targeted endpoint accepts
-// attachments.
+// the same bubble as the venue reply. postBack stays inside the
+// suggested-actions payload (no attachment) and gives us the same
+// silent UX.
+//
+// Note: the SDK's CardActionType enum does NOT include `messageBack`
+// even though the doc comment mentions it — the comment is stale.
+// Stick to `imBack` / `postBack` / `openUrl` / `invoke` etc.
 export const POST_TO_CHAT_TOKEN = '__relecloud_post_to_chat__';
 
 // Heuristic for slash-command invocations across clients. Some Teams
@@ -76,14 +78,12 @@ function buildVenueReply(ctx: ActivityContext, includePostToChatChip: boolean): 
     actions: includePostToChatChip
       ? [
           {
-            type: 'messageBack' as const,
+            // postBack: silent — the click goes to the bot via the
+            // value/text fields without posting a visible user message.
+            type: 'postBack' as const,
             title: '📣 Post to chat',
-            // Bot-only: routed in index.ts via text comparison.
-            text: POST_TO_CHAT_TOKEN,
             value: POST_TO_CHAT_TOKEN,
-            // User-visible text in the chat instead of the raw token.
-            displayText: '📣 Sharing this with the group…',
-          } as any,
+          },
           ...followUpActions,
         ]
       : followUpActions,

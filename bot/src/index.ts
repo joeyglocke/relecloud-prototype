@@ -53,11 +53,12 @@ app.on('message', async (ctx: any) => {
   }
 
   // Group / channel — Post-to-chat takes priority. The "📣 Post to chat"
-  // chip is a `messageBack` suggested action; clicking it sends an
-  // incoming message with `activity.text === POST_TO_CHAT_TOKEN` while
-  // showing the user-friendly displayText in the chat. Bot responds with
-  // the public promoted reply.
-  if (text === POST_TO_CHAT_TOKEN) {
+  // chip is a `postBack` suggested action; clicking it sends the sentinel
+  // value silently to the bot (no visible user message in the chat). The
+  // sentinel arrives in `activity.value` for postBack — we also check
+  // `activity.text` defensively in case a client routes it there.
+  const value = ctx.activity?.value;
+  if (text === POST_TO_CHAT_TOKEN || value === POST_TO_CHAT_TOKEN) {
     await handlePromoteToChat(ctx);
     return;
   }
