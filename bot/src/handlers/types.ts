@@ -17,4 +17,10 @@ export type ActivityContext = {
   activity: any;
   send: SendFn;
   stream?: StreamFn;
+  /**
+   * Loose-typed handle to the SDK's ApiClient. The handlers only need a
+   * couple of properties (`reactions.add(…)` etc.); typing it as `any`
+   * keeps the surface flexible while the SDK preview iterates.
+   */
+  api?: any;
 };

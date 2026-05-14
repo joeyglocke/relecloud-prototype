@@ -7,10 +7,25 @@ import { matchPrompt, STREAMING_PROMPTS, WELCOME_MARKDOWN } from '../data/prompt
  * 1:1 conversations only — so this is the only path that uses
  * `ctx.stream.emit(...)`. Any free-form message that doesn't match a
  * canned prompt gets a brief targeted-style acknowledgement.
+ *
+ * Adds a 👀 (`1f440_eyes`) reaction on the user's message right away —
+ * mirrors the React UI prototype's "agent saw your ask" affordance and
+ * makes the long-running streaming response feel acknowledged from the
+ * first beat. Fire-and-forget so a reaction failure never blocks the
+ * actual reply (the reactions API is preview / experimental).
  */
 export async function handleDirectMessage(ctx: ActivityContext): Promise<void> {
-  const { activity, stream, send } = ctx;
+  const { activity, stream, send, api } = ctx;
   const text: string = activity.text?.trim() ?? '';
+
+  // 👀 reaction on the user's message. No await — let it fly in parallel
+  // with the response so the bot still streams a reply if reactions fail.
+  void api?.reactions
+    ?.add(activity.conversation.id, activity.id, '1f440_eyes')
+    .catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.warn('reaction add failed:', err);
+    });
 
   // Suggested-action chips sent from a finalized streaming message replay
   // the chip title back to the bot. If the text matches one of our prompt
