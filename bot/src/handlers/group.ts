@@ -2,24 +2,26 @@ import { MessageActivity } from '@microsoft/teams.api';
 import type { ActivityContext } from './types.js';
 import { VENUE_REPLY } from '../data/venues.js';
 
-// Sentinel `value` the bot receives when the user clicks the
-// "📣 Post to chat" chip. The chip is a `postBack` suggested action —
-// Bot Framework's silent-suggested-action type. Clicking it sends the
-// value to the bot but does NOT post a visible user message in the
-// chat (unlike `imBack`, which always posts the value as visible text).
+// User-visible label + sentinel for the Post-to-chat chip. We use
+// `imBack` (the only suggested-action type Teams reliably renders),
+// and set the action's `value` equal to the visible title — so when
+// the user clicks the chip, what posts in the chat is exactly
+// "📣 Post to chat" instead of an internal token. The bot routes on
+// this text and replies publicly.
 //
-// Why postBack and not Action.Execute on an Adaptive Card?
-// The Teams targeted-message preview endpoint rejects activities that
-// combine markdown text with an attachment (`BadSyntax: field is in
-// the wrong format: text`), so the silent-invoke pattern can't ride on
-// the same bubble as the venue reply. postBack stays inside the
-// suggested-actions payload (no attachment) and gives us the same
-// silent UX.
-//
-// Note: the SDK's CardActionType enum does NOT include `messageBack`
-// even though the doc comment mentions it — the comment is stale.
-// Stick to `imBack` / `postBack` / `openUrl` / `invoke` etc.
-export const POST_TO_CHAT_TOKEN = '__relecloud_post_to_chat__';
+// Why not silent? Tried (in order):
+//   • messageBack — SDK's CardActionType enum doesn't include it
+//     (stale doc comment lies); the SDK strips the chip silently.
+//   • postBack — in the SDK enum, but the modern Teams client
+//     doesn't render postBack in suggested actions; chip vanishes.
+//   • Action.Execute on an Adaptive Card attachment — the targeted-
+//     message preview endpoint rejects payloads that combine markdown
+//     text with an attachment ("BadSyntax: field is in the wrong
+//     format: text").
+// imBack with a friendly value is the only path that's both reliable
+// and clean — the brief "📣 Post to chat" line in the transcript is
+// fine narratively and tells the rest of the group what just happened.
+export const POST_TO_CHAT_TOKEN = '📣 Post to chat';
 
 // Heuristic for slash-command invocations across clients. Some Teams
 // surfaces pass `/relecloud …` verbatim in `activity.text`; others rewrite
@@ -78,10 +80,11 @@ function buildVenueReply(ctx: ActivityContext, includePostToChatChip: boolean): 
     actions: includePostToChatChip
       ? [
           {
-            // postBack: silent — the click goes to the bot via the
-            // value/text fields without posting a visible user message.
-            type: 'postBack' as const,
-            title: '📣 Post to chat',
+            // imBack: posts `value` as a visible user message in the
+            // chat. We set value === title so the visible message is
+            // the friendly "📣 Post to chat", not an internal token.
+            type: 'imBack' as const,
+            title: POST_TO_CHAT_TOKEN,
             value: POST_TO_CHAT_TOKEN,
           },
           ...followUpActions,
