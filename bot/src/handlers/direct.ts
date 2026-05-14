@@ -105,37 +105,45 @@ async function streamPromptResponse(
   ctx: ActivityContext,
   prompt: StreamingPrompt,
 ): Promise<void> {
-  const { stream, activity } = ctx;
+  const { stream, activity, send } = ctx;
   if (!stream) return;
 
-  // Stream the markdown body in small chunks. The SDK takes care of
-  // showing the caret / streaming visual on the client.
+  // Stream the markdown body in small chunks. The streamer's internal
+  // flush accumulates `text` across emits, so each emit ADDS to the
+  // final message body — don't emit the full markdown again later.
   for (const chunk of chunkify(prompt.markdown, 3)) {
     stream.emit(chunk);
     await sleep(28);
   }
 
-  // Closing emit — full activity with AI metadata, citations, feedback
-  // buttons, and the suggested-action follow-up chips. This is what the
-  // Teams client displays once the stream finishes.
-  const final = new MessageActivity(prompt.markdown)
-    .addAiGenerated()
-    .addFeedback();
-
+  // Metadata emit — empty text, only the AI label (entity) + citations
+  // (entities) + feedback flag (channelData). The streamer merges these
+  // into the accumulated state and applies them to the message built by
+  // close(). Crucially, `text` is `''` so the streamer's
+  // `if (activity.text) { this.text += … }` check skips it and the body
+  // doesn't double up.
+  const meta = new MessageActivity('').addAiGenerated().addFeedback();
   prompt.citations.forEach((c, i) => {
-    final.addCitation(i + 1, { name: c.name, abstract: c.abstract });
+    meta.addCitation(i + 1, { name: c.name, abstract: c.abstract });
   });
+  stream.emit(meta);
 
-  final.withSuggestedActions({
-    to: [activity.from.id],
-    actions: prompt.suggestedActions.map((s) => ({
-      type: 'imBack' as const,
-      title: s,
-      value: s,
-    })),
-  });
-
-  stream.emit(final);
+  // Suggested-action chips can't ride along on a streamed message — the
+  // streamer's close() builds the final activity from text + attachments
+  // + entities + channelData only, so `suggestedActions` get dropped.
+  // Send them as a tiny follow-up message instead so the chips are still
+  // reachable from the streaming response. Short lead-in keeps the
+  // chips from looking like they're attached to nothing.
+  const followup = new MessageActivity('Anything else you want to dig into?')
+    .withSuggestedActions({
+      to: [activity.from.id],
+      actions: prompt.suggestedActions.map((s) => ({
+        type: 'imBack' as const,
+        title: s,
+        value: s,
+      })),
+    });
+  await send(followup);
 }
 
 /**
