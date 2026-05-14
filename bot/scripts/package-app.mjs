@@ -61,10 +61,25 @@ if (!BOT_ID) {
 
 function applySubstitutions(name, raw) {
   if (name !== 'manifest.json') return raw;
-  const text = raw
-    .toString('utf8')
+  let text = raw.toString('utf8');
+  // Strip any UTF-8 BOM that might have crept in via editor / Git settings.
+  // Teams' sideload validator rejects manifests that start with a BOM as
+  // `UnableToParseTeamsAppManifest`.
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
+  text = text
     .replace(/\$\{\{\s*TEAMS_APP_ID\s*\}\}/g, TEAMS_APP_ID)
     .replace(/\$\{\{\s*BOT_ID\s*\}\}/g, BOT_ID);
+  // Validate JSON early so a packaging-time bug doesn't manifest as the
+  // opaque `UnableToParseTeamsAppManifest` error on upload.
+  try {
+    JSON.parse(text);
+  } catch (err) {
+    console.error('!! manifest.json failed JSON.parse after substitution:');
+    console.error(`   ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
   return Buffer.from(text, 'utf8');
 }
 
