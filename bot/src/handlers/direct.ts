@@ -1,12 +1,29 @@
 import { MessageActivity } from '@microsoft/teams.api';
 import type { ActivityContext } from './types.js';
-import { matchPrompt, STREAMING_PROMPTS, WELCOME_MARKDOWN } from '../data/prompts.js';
+import { STREAMING_PROMPTS, WELCOME_MARKDOWN, type StreamingPrompt } from '../data/prompts.js';
+
+// Look up the two prompts we route to. Title-based lookup so the data
+// shape can grow without breaking this handler.
+const DIETARY_PROMPT = STREAMING_PROMPTS.find(
+  (p) => p.title.toLowerCase() === 'dietary options at suncadia',
+);
+const OFFSITE_PROMPT = STREAMING_PROMPTS.find(
+  (p) => p.title.toLowerCase() === 'activities for 2-day offsite',
+);
 
 /**
  * 1:1 direct-message handler. Per the Teams SDK, streaming is supported in
  * 1:1 conversations only — so this is the only path that uses
- * `ctx.stream.emit(...)`. Any free-form message that doesn't match a
- * canned prompt gets a brief targeted-style acknowledgement.
+ * `ctx.stream.emit(...)`.
+ *
+ * Routing for the demo:
+ *   • Anything mentioning "dietary" (or an exact match to the dietary
+ *     prompt's title or chip text) → stream the dietary-accommodations
+ *     response.
+ *   • Everything else (including any free-form input) → stream the
+ *     2-day offsite plan. This makes the demo "always rewarding" —
+ *     no dead-end fallbacks, every send produces a rich AI-labeled
+ *     reply with citations and follow-up chips.
  *
  * Adds a 👀 (`1f440_eyes`) reaction on the user's message right away —
  * mirrors the React UI prototype's "agent saw your ask" affordance and
@@ -27,41 +44,48 @@ export async function handleDirectMessage(ctx: ActivityContext): Promise<void> {
       console.warn('reaction add failed:', err);
     });
 
-  // Suggested-action chips sent from a finalized streaming message replay
-  // the chip title back to the bot. If the text matches one of our prompt
-  // cards, stream that card's response.
-  const prompt = matchPrompt(text);
-  if (prompt && stream) {
-    await streamPromptResponse(ctx, prompt);
-    return;
-  }
+  // Pick which canned response to stream. Dietary is the one carve-out;
+  // anything else funnels to the offsite plan.
+  const lower = text.toLowerCase();
+  const isDietaryAsk =
+    !!DIETARY_PROMPT &&
+    (lower === DIETARY_PROMPT.title.toLowerCase() ||
+      lower === DIETARY_PROMPT.text.toLowerCase() ||
+      lower.includes('dietary'));
 
-  // Fallback: free-form ask. Stream a short generic acknowledgement so
-  // streaming UX is still visible, then close out without citations.
-  if (stream) {
-    const fallback =
-      "Working on it — let me pull a few sources and come back with details. " +
-      "In the meantime, the prompt suggestions in this chat are good shortcuts.";
-    for (const chunk of chunkify(fallback, 3)) {
-      stream.emit(chunk);
-      await sleep(28);
-    }
-    // Final emit attaches the AI label + feedback buttons to the
-    // finalized message (Teams shows thumbs up/down inline below).
-    stream.emit(
-      new MessageActivity(fallback).addAiGenerated().addFeedback(),
+  const prompt = isDietaryAsk ? DIETARY_PROMPT : OFFSITE_PROMPT;
+
+  if (!prompt) {
+    // Defensive — should never hit unless data/prompts.ts is mis-edited.
+    await send(
+      new MessageActivity('Working on it.').addAiGenerated().addFeedback(),
     );
     return;
   }
 
-  // No stream available (edge case) — just send a normal message.
-  await send(
-    new MessageActivity(
-      "Working on it — let me pull a few sources and come back.",
-    )
-      .addAiGenerated()
-      .addFeedback(),
+  if (stream) {
+    await streamPromptResponse(ctx, prompt);
+    return;
+  }
+
+  // No stream available (edge case in a 1:1 — shouldn't normally happen).
+  // Send the same content as a regular message so the user still gets
+  // the AI-labeled + cited response.
+  const fallback = new MessageActivity(prompt.markdown)
+    .addAiGenerated()
+    .addFeedback();
+  prompt.citations.forEach((c, i) =>
+    fallback.addCitation(i + 1, { name: c.name, abstract: c.abstract }),
   );
+  fallback.withSuggestedActions({
+    to: [activity.from.id],
+    actions: prompt.suggestedActions.map((s) => ({
+      type: 'imBack' as const,
+      title: s,
+      value: s,
+    })),
+  });
+  await send(fallback);
 }
 
 /**
@@ -79,7 +103,7 @@ export async function handleDirectMessage(ctx: ActivityContext): Promise<void> {
  */
 async function streamPromptResponse(
   ctx: ActivityContext,
-  prompt: ReturnType<typeof matchPrompt> & object,
+  prompt: StreamingPrompt,
 ): Promise<void> {
   const { stream, activity } = ctx;
   if (!stream) return;
@@ -118,7 +142,10 @@ async function streamPromptResponse(
  * First-install / new-conversation welcome. Sends an intro + four
  * suggested-action chips that map to the streaming prompt cards. Click a
  * chip → the user's message arrives at `handleDirectMessage` with the
- * chip's `value` as `activity.text` → `matchPrompt` finds it → streams.
+ * chip's `value` as `activity.text`. Routing in `handleDirectMessage`
+ * funnels every send to the offsite plan unless the text mentions
+ * "dietary" (or matches the dietary prompt's title/text exactly), in
+ * which case the dietary-accommodations response is streamed instead.
  */
 export async function sendDirectWelcome(ctx: ActivityContext): Promise<void> {
   const welcome = new MessageActivity(WELCOME_MARKDOWN);
